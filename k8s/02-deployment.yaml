@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: poc-bible
-          image: nixndme/poc-bible:3
+          image: nixndme/poc-bible:8
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

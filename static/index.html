@@ -2149,26 +2149,248 @@ var MODULE_WEEKS = {
     ]
   }],
   hks: [{
-    id:"hks-w1", label:"HKS W1", title:"HKS/MKS — Kubernetes Integration", days:"Days 1-7",
+    id:"hks-w1", label:"HKS W1", title:"HKS/MKS — Kubernetes Service on VMware / HVM", days:"Days 1-7",
+    signoff:"Complete all tasks in this module and confirm with your HPE SE that the Kubernetes cluster is provisioned, all nodes are healthy, kubectl access is verified, and at least one scale-out operation has been tested.",
+    desc:"This module covers enabling Morpheus Kubernetes Service (MKS/HKS) on VMware vCenter or HVM. Complete all prerequisites before provisioning. HVM clusters require pre-existing Ubuntu 22/24 hosts with static IP addresses.",
     groups:[
-      {id:"grp-hks-connect", title:"Connect Kubernetes cluster", items:[
-        "Generate kubeconfig for the target cluster",
-        "Add Kubernetes cloud integration in Morpheus (Infrastructure → Clouds → Add → Kubernetes)",
-        "Paste kubeconfig and verify cluster connection",
-        "Confirm nodes and namespaces appear in Morpheus inventory",
-      ]},
-      {id:"grp-hks-deploy", title:"Deploy and manage workloads", items:[
-        "Create a Kubernetes Instance Type in Morpheus Library",
-        "Deploy a test containerised workload via Morpheus",
-        "Verify pod appears in target namespace in the cluster",
-        "Test scale up/down via Morpheus UI",
-        "Delete workload from Morpheus and confirm pod removed from cluster",
-      ]},
-      {id:"grp-hks-govern", title:"Governance and namespace control", items:[
-        "Map Kubernetes namespaces to Morpheus Groups/Tenants",
-        "Apply resource quota policies via Morpheus to the test namespace",
-        "Verify policy enforcement (attempt to exceed quota)",
-      ]}
+      {
+        id:"grp-hks-prereq", title:"Prerequisites & Infrastructure Planning",
+        notes:[
+          {type:"info", text:"All firewall ports must be open and verified before triggering cluster provisioning. Missing rules are the most common cause of failed MKS deployments."},
+          {type:"warn", text:"For HVM clusters, Morpheus does <strong>not</strong> provision the base OS. Ubuntu 22.04 or 24.04 hosts must already exist with static IPs before you begin."}
+        ],
+        items:[
+          {id:"hks-pre1", title:"Verify node compute resources",
+           detail:"Each node must meet minimum hardware requirements. Undersized nodes cause provisioning failures.",
+           navSteps:[
+             {type:"steps", label:"Confirm per-node specifications", steps:[
+               {action:"CPU: 64-bit x86 architecture, 1.5 GHz or faster"},
+               {action:"RAM: 4 GB minimum per node (8 GB+ recommended for master)"},
+               {action:"OS disk: 15 GB minimum"},
+               {action:"HVM Ceph converged layout: add 500 GB+ data disk per node for distributed storage"}
+             ]}
+           ]},
+          {id:"hks-pre2", title:"Confirm OS images available for cluster nodes",
+           detail:"VMware provisions Ubuntu VMs automatically from vCenter images. HVM requires hosts already running Ubuntu with static IPs.",
+           navSteps:[
+             {type:"note", style:"info", text:"<strong>VMware:</strong> Ubuntu 22.04 or 24.04 template must be in your vCenter library and synced into Morpheus under Library → Virtual Images.<br><br><strong>HVM:</strong> Ubuntu 22.04 or 24.04 hosts must already exist with static IPs. Morpheus installs the Agent and kubeadm but does not provision the base OS."}
+           ]},
+          {id:"hks-pre3", title:"Validate firewall rules — appliance ↔ nodes",
+           detail:"Both inbound and outbound ports must be open before provisioning. Test each rule from the correct source host.",
+           navSteps:[
+             {type:"steps", label:"Required firewall rules", steps:[
+               {action:"TCP 443: every cluster node → Morpheus appliance", sub:"Morpheus Agent communication. Required on every node."},
+               {action:"TCP 22: Morpheus appliance → every cluster node", sub:"Agent installation via SSH. Appliance must reach each node."},
+               {action:"TCP 443 outbound from nodes to: packages.cloud.google.com, storage.googleapis.com, docs.projectcalico.org, openebs.github.io, cloud.weave.works", sub:"Kubernetes component downloads during cluster bootstrap."}
+             ]},
+             {type:"cmd", label:"Test appliance → node SSH connectivity", code:"ssh ubuntu@<node-ip> 'echo reachable'\n# Must respond without timeout"}
+           ]},
+          {id:"hks-pre4", title:"Open additional HVM inter-host ports (HVM only)",
+           detail:"HVM clusters use Ceph for distributed storage and Corosync for HA. These ports must be open between all HVM host pairs.",
+           navSteps:[
+             {type:"steps", label:"Additional HVM firewall rules (between every HVM host pair)", steps:[
+               {action:"TCP 22: management and agent install"},
+               {action:"TCP 3300, 6789: Ceph monitor ports"},
+               {action:"TCP 6800–7300: Ceph OSD replication and heartbeat"},
+               {action:"UDP 5404–5406: Corosync cluster communication"}
+             ]}
+           ]},
+          {id:"hks-pre5", title:"Confirm Morpheus user role has Clusters: Full permission",
+           detail:"The user provisioning the cluster must have full Infrastructure permissions. Read-only roles will silently fail at cluster creation.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Administration","Roles"]},
+             {type:"steps", label:"Verify permission level", steps:[
+               {action:"Open the role assigned to your Morpheus user"},
+               {action:"Scroll to the Infrastructure section"},
+               {action:"Confirm Infrastructure: Clusters is set to Full (not Read)"}
+             ]}
+           ]},
+          {id:"hks-pre6", title:"Verify all cluster nodes resolve the Morpheus appliance FQDN",
+           detail:"Every node that will join the cluster must resolve the Morpheus hostname. Failed DNS resolution blocks agent installation.",
+           navSteps:[
+             {type:"cmd", label:"Test from a cluster node", code:"nslookup <morpheus-appliance-fqdn>\n# Must return the appliance IP address\n\n# Also verify agent port reachability:\ncurl -sk https://<morpheus-appliance-fqdn>/ping\n# Must return a response (not a timeout)"}
+           ]}
+        ]
+      },
+      {
+        id:"grp-hks-configure", title:"Configure MKS Service in Morpheus Library",
+        notes:[
+          {type:"info", text:"The Cluster Layout and Service Plans must exist before provisioning. Without them the wizard's Configure tab will show no options and provisioning will fail."}
+        ],
+        items:[
+          {id:"hks-cfg1", title:"Create Kubernetes Cluster Layout",
+           detail:"A Cluster Layout defines the technology, node type assignments, and resource minimums for a Kubernetes cluster.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Library","Blueprints","Cluster Layouts"]},
+             {type:"steps", label:"Create the layout", steps:[
+               {action:"Click + ADD"},
+               {action:"Cluster Type: Kubernetes Cluster"},
+               {action:"Technology: VMware (or KVM for HVM clusters)"},
+               {action:"Minimum Memory: 4096 MB"},
+               {action:"Save the layout"}
+             ]}
+           ]},
+          {id:"hks-cfg2", title:"Attach Master and Worker Node Types to the layout",
+           detail:"Node Types define the OS image and bootstrap scripts used to configure each node role. Both master and worker must be attached.",
+           navSteps:[
+             {type:"note", style:"info", text:"Node Types use Ubuntu 22.04 or 24.04 images with kubeadm pre-installed. Your HPE SE will provide the correct Node Type configurations for your environment."},
+             {type:"steps", label:"In the layout configuration", steps:[
+               {action:"In the Master Node Type field — select the Ubuntu master Node Type"},
+               {action:"In the Worker Node Type field — select the Ubuntu worker Node Type"},
+               {action:"Confirm both Node Types have kubeadm bootstrap scripts attached"},
+               {action:"Save the layout"}
+             ]}
+           ]},
+          {id:"hks-cfg3", title:"Create Service Plans for master and worker nodes",
+           detail:"Service Plans define the CPU, RAM, and disk Morpheus requests from the hypervisor when provisioning each node.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Administration","Plans & Pricing","Plans"]},
+             {type:"steps", label:"Create master node plan", steps:[
+               {action:"Click + ADD"},
+               {action:"Name: e.g. MKS-Master"},
+               {action:"Provision Type: VMware (or KVM for HVM)"},
+               {action:"vCPU: 2, RAM: 8 GB, Disk: 30 GB"},
+               {action:"Save"}
+             ]},
+             {type:"steps", label:"Create worker node plan", steps:[
+               {action:"Click + ADD — repeat for worker specifications"},
+               {action:"Name: e.g. MKS-Worker"},
+               {action:"vCPU: 4, RAM: 8 GB, Disk: 50 GB"},
+               {action:"Save"}
+             ]}
+           ]},
+          {id:"hks-cfg4", title:"Confirm layout and plans are visible in Morpheus",
+           detail:"Before provisioning, verify both the layout and plans are discoverable. Missing entries mean the wizard will show no options.",
+           navSteps:[
+             {type:"path", label:"Verify Cluster Layout", path:["Library","Blueprints","Cluster Layouts"]},
+             {type:"path", label:"Verify Service Plans", path:["Administration","Plans & Pricing","Plans"]},
+             {type:"note", style:"info", text:"If either is missing, re-check the creation steps above before proceeding to provisioning."}
+           ]}
+        ]
+      },
+      {
+        id:"grp-hks-provision", title:"Provision Kubernetes Cluster",
+        notes:[
+          {type:"warn", text:"VMware clusters require DHCP on the selected network for initial bootstrap. Do not select a network without DHCP — cluster provisioning will fail at the VM network configuration step."},
+          {type:"info", text:"Provisioning typically takes 10–20 minutes. Do not interrupt the process. Monitor the History tab for real-time task status."}
+        ],
+        items:[
+          {id:"hks-prv1", title:"Launch the cluster provisioning wizard",
+           detail:"Start cluster creation from the Clusters section under Infrastructure.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Infrastructure","Clusters"]},
+             {type:"steps", label:"Open the wizard", steps:[
+               {action:"Click + ADD CLUSTER"},
+               {action:"Select Kubernetes Cluster"},
+               {action:"Click Next"}
+             ]}
+           ]},
+          {id:"hks-prv2", title:"Set cluster identity — name, group, and cloud",
+           detail:"The Cluster Name appears in the Morpheus UI. Resource Name is a prefix for all VMs created for this cluster.",
+           navSteps:[
+             {type:"steps", label:"Configure identity fields", steps:[
+               {action:"Select your Group (e.g. POC-Group)"},
+               {action:"Select your VMware vCenter Cloud"},
+               {action:"Cluster Name: descriptive name (e.g. poc-k8s-01)"},
+               {action:"Resource Name: short VM prefix (e.g. k8s-poc)", sub:"All cluster node VMs will be named using this prefix."}
+             ]}
+           ]},
+          {id:"hks-prv3", title:"Configure layout, service plans, and network",
+           detail:"Select the cluster topology and resource allocation. Confirm DHCP is available on the network before proceeding.",
+           navSteps:[
+             {type:"steps", label:"Configure cluster resources", steps:[
+               {action:"Layout: select Single Master or HA (3 master nodes for production)"},
+               {action:"Master Service Plan: select the plan you created (e.g. MKS-Master)"},
+               {action:"Worker Service Plan: select the worker plan (e.g. MKS-Worker)"},
+               {action:"Worker Node Count: 3 (default — adjust based on workload)"},
+               {action:"Network: select a VMware port group with DHCP enabled"},
+               {action:"Pod CIDR: optionally define a custom pod network range (default: 10.244.0.0/16)"}
+             ]}
+           ]},
+          {id:"hks-prv4", title:"Complete provisioning and monitor the automated workflow",
+           detail:"Once COMPLETE is clicked, Morpheus orchestrates the full Kubernetes bootstrap sequence.",
+           navSteps:[
+             {type:"steps", label:"Provisioning stages — watch in History tab", steps:[
+               {action:"VM spin-up: Morpheus clones the Ubuntu template and powers on each node"},
+               {action:"Agent installation: Morpheus SSH's into each node and installs the Morpheus Agent"},
+               {action:"kubeadm init: the control plane is initialized on the master node"},
+               {action:"Worker join: each worker node runs kubeadm join to join the cluster"},
+               {action:"Health validation: Morpheus verifies all nodes report Ready status"}
+             ]},
+             {type:"path", label:"Monitor in real time", path:["Infrastructure","Clusters","[Cluster Name]","History tab"]}
+           ]},
+          {id:"hks-prv5", title:"Confirm cluster status turns green",
+           detail:"Green status in the Clusters list confirms the full bootstrap sequence completed successfully.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Infrastructure","Clusters"]},
+             {type:"steps", label:"Confirm healthy state", steps:[
+               {action:"Locate your cluster — status indicator must be green"},
+               {action:"Open the cluster → Nodes tab"},
+               {action:"All master and worker nodes must show healthy status"},
+               {action:"Morpheus Agent must show as active on each node"}
+             ]}
+           ]}
+        ]
+      },
+      {
+        id:"grp-hks-validate", title:"Validate & Day-2 Operations",
+        items:[
+          {id:"hks-val1", title:"Download kubeconfig and verify kubectl access",
+           detail:"The kubeconfig file grants direct kubectl access to the cluster. Verify you can list nodes from your local workstation.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Infrastructure","Clusters","[Cluster Name]"]},
+             {type:"steps", label:"Download and test kubeconfig", steps:[
+               {action:"Click ACTIONS → View Kube Config"},
+               {action:"Copy the kubeconfig content and save to ~/.kube/config"},
+               {action:"Run: kubectl get nodes from your local terminal"}
+             ]},
+             {type:"cmd", label:"Expected output — all nodes in Ready state", code:"kubectl get nodes\n\n# NAME              STATUS   ROLES           AGE   VERSION\n# k8s-poc-master    Ready    control-plane   5m    v1.x.x\n# k8s-poc-worker1   Ready    <none>          4m    v1.x.x\n# k8s-poc-worker2   Ready    <none>          4m    v1.x.x\n# k8s-poc-worker3   Ready    <none>          4m    v1.x.x"}
+           ]},
+          {id:"hks-val2", title:"Verify node health in the Nodes tab",
+           detail:"Confirms agent connectivity and node-level health from the Morpheus platform perspective.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Infrastructure","Clusters","[Cluster Name]","Nodes tab"]},
+             {type:"steps", label:"Confirm node health", steps:[
+               {action:"All master and worker nodes must show green / healthy status"},
+               {action:"Morpheus Agent must show as active on every node"},
+               {action:"If any node shows degraded — check the History tab for the failed task"}
+             ]}
+           ]},
+          {id:"hks-val3", title:"Review cluster metrics in the Monitoring tab",
+           detail:"Verify Morpheus is collecting and displaying live performance metrics for the cluster.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Infrastructure","Clusters","[Cluster Name]","Monitoring tab"]},
+             {type:"steps", label:"Confirm metrics are live", steps:[
+               {action:"CPU utilization graph must show live data"},
+               {action:"Memory usage must be visible"},
+               {action:"Storage metrics must appear (if Ceph or persistent storage is configured)"},
+               {action:"If graphs are empty — wait 2–3 minutes for the first metric collection cycle"}
+             ]}
+           ]},
+          {id:"hks-val4", title:"Test scale-out — add a worker node",
+           detail:"Validates day-2 operations by adding a worker node to the running cluster through Morpheus.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Infrastructure","Clusters","[Cluster Name]"]},
+             {type:"steps", label:"Scale out the cluster", steps:[
+               {action:"Click ACTIONS → Add Kubernetes Worker"},
+               {action:"Select the worker Service Plan"},
+               {action:"Click COMPLETE and monitor the History tab"},
+               {action:"Wait for the new node to appear in the Nodes tab with healthy status"},
+               {action:"Run: kubectl get nodes — confirm the new node shows Ready"}
+             ]}
+           ]},
+          {id:"hks-val5", title:"Review History tab and confirm all tasks succeeded",
+           detail:"The History tab shows every automation task Morpheus ran during provisioning and day-2 operations.",
+           navSteps:[
+             {type:"path", label:"Navigate to", path:["Infrastructure","Clusters","[Cluster Name]","History tab"]},
+             {type:"steps", label:"Audit task history", steps:[
+               {action:"All tasks must show green / completed status"},
+               {action:"Note any failed or warning tasks and capture the error message"}
+             ]},
+             {type:"note", style:"warn", text:"If any provisioning task failed: check Morpheus logs at <strong>Administration → Health → Morpheus Logs</strong>, or SSH to the appliance and run:<br><br><code style='background:rgba(0,0,0,.08);padding:3px 8px;border-radius:4px'>sudo morpheus-ctl tail morpheus-ui</code>"}
+           ]}
+        ]
+      }
     ]
   }],
   terraform: [{
@@ -2202,40 +2424,123 @@ function buildModuleContent() {
   Object.entries(MODULE_WEEKS).forEach(([key, weeks]) => {
     if (!apiMods[key]) return;
     weeks.forEach(w => {
-      let fi = 0;
       const tot = w.groups.reduce((s, g) => s + g.items.length, 0);
-      const don = w.groups.reduce((s, g) => s + g.items.filter((_,i) => {
-        const ck = `${w.id}|${g.id}|${i}`;
-        return checks[ck];
-      }).length, 0);
+      const don = Object.values(checks[w.id]||{}).filter(Boolean).length;
+      const so = signoffs[w.id];
       const isOpen = openWeeks.has(w.id);
       h += `<div class="week-block ${isOpen?'wk-open':''}" id="wb-${w.id}">
         <div class="wk-hdr" onclick="togWeek('${w.id}',true)">
           <div class="wk-pill">${w.label}</div>
           <div class="wk-title">${w.title}</div>
-          <div class="wk-days">${w.days}</div>
-          ${tot>0?`<div class="wk-prog ${don===tot?'all':''}">${don}/${tot}</div>`:''}
-          ${signoffs[w.id]?`<div style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(1,169,130,.1);color:#0f6e56;margin-left:auto;flex-shrink:0">✓ HPE SE reviewed</div>`:''}
-        </div>`;
+          <div class="wk-days">${w.days||''}</div>
+          ${tot>0?`<div class="wk-prog ${don===tot&&tot>0?'all':''}">${don}/${tot}</div>`:''}
+          ${so?`<div class="wk-done-tag">✓ Complete</div>`:''}
+          <div class="wk-chevron">▼</div>
+        </div>
+        <div class="wk-body">`;
       if (isOpen) {
-        h += '<div class="wk-body">';
+        if (w.desc) h += `<div class="wk-desc">${w.desc}</div>`;
+        h += `<div class="ovr-prog">
+          <div class="op-row"><div class="op-lbl">Module Progress</div><div class="op-num">${don}/${tot} completed</div></div>
+          <div class="op-track"><div class="op-fill" style="width:${tot?don/tot*100:0}%"></div></div>
+        </div>`;
         w.groups.forEach(g => {
-          h += `<div class="grp-block ${gOpen?'grp-open':''}" id="gb-${g.id}" data-grp-title="${g.title}">
-            <div class="grp-hdr" onclick="togGrp('${g.id}')">${g.title}</div>
+          const gOpen = openGroups.has(g.id);
+          const gd = g.items.filter(item => (checks[w.id]||{})[item.id]===true).length;
+          const gt = g.items.length;
+          const grpNoteCount = (customerNotes||[]).filter(n=>n.section_id===g.id).length;
+          const cBtnLbl = grpNoteCount ? `&#x1F4AC; ${grpNoteCount}` : '+ Add note';
+          const cBtn = API_TOKEN ? `<button class="grp-comment-btn${grpNoteCount?' has-item-note':''}" id="gnote-chip-${g.id}" onclick="event.stopPropagation();selectBibleSection('${w.id}','${g.id}',this.dataset.grpTitle)" data-grp-title="${g.title}" title="${grpNoteCount?grpNoteCount+' note(s)':'Add note'}">${cBtnLbl}</button>` : '';
+          h += `<div class="grp-block ${gOpen?'grp-open':''}" id="gb-${g.id}">
+            <div class="grp-hdr" onclick="togGrp('${g.id}')">
+              <span class="grp-caret">▶</span>
+              <span class="grp-title">${g.title}</span>
+              <span class="grp-ct ${gd===gt&&gt>0?'done':''}">${gd}/${gt}</span>
+              ${cBtn}
+            </div>
             <div class="grp-body">`;
-          g.items.forEach((item, i) => {
-            const ck = `${w.id}|${g.id}|${i}`;
-            const done = !!checks[ck];
-            h += `<label class="task-row ${done?'done':''}" onclick="toggleCheck('${ck}','${w.id}')">
-              <span class="cb ${done?'cb-on':''}">${done?'✓':''}</span>
-              <span class="task-text">${item}</span>
-            </label>`;
+          (g.notes||[]).forEach(n => {
+            const icon = n.type==='warn'?'⚠ Important: ':n.type==='danger'?'⛔ Warning: ':n.type==='hpe'?'ℹ HPE Note: ':'';
+            h += `<div class="note-box ${n.type}"><strong>${icon}</strong>${n.text}`;
+            if (n.link) h += `<br><a class="note-link" href="${n.link.url}" target="_blank">↗ ${n.link.label}</a>`;
+            h += '</div>';
+          });
+          g.items.forEach(item => {
+            const ck = (checks[w.id]||{})[item.id]===true;
+            const noteCount = (customerNotes||[]).filter(n=>n.section_id===g.id&&n.item_id===item.id).length;
+            const noteBtnCls = noteCount ? 'item-note-btn has-item-note' : 'item-note-btn';
+            const noteBtnLbl = noteCount ? `💬 ${noteCount}` : '+ Add note';
+            const noteBtnHtml = API_TOKEN ? `<button class="${noteBtnCls}" title="${noteCount?noteCount+' note(s)':'Add note'}" id="inote-btn-${item.id}" onclick="event.stopPropagation();selectBibleSection('${w.id}','${g.id}',this.closest('[data-grp-title]')?.dataset.grpTitle||'','${item.id}',this.dataset.itemTitle)" data-item-title="${(item.title||'').replace(/"/g,'&quot;')}">${noteBtnLbl}</button>` : '';
+            h += `<div class="task-item ${ck?'ck':''}" id="ti-${w.id}-${item.id}" onclick="toggleModCheck('${w.id}','${item.id}')">
+              <div class="tcb"><div class="tcb-v">✓</div></div>
+              <div class="task-body">
+                <div class="task-ttl-row" style="display:flex;align-items:flex-start;gap:6px"><div class="task-ttl" style="flex:1">${item.title||item.name||''}</div>${noteBtnHtml}</div>
+                <div class="task-det">${item.detail||item.det||''}</div>`;
+            if (item.navSteps) {
+              item.navSteps.forEach(section => {
+                if (section.type === 'path') {
+                  h += `<div class="sec-divider">${section.label}</div><div class="nav-path">`;
+                  section.path.forEach((p,i) => {
+                    h += `<span class="nav-path-item">${p}</span>`;
+                    if (i < section.path.length-1) h += `<span class="nav-path-sep">›</span>`;
+                  });
+                  h += `</div>`;
+                } else if (section.type === 'steps') {
+                  h += `<div class="sec-divider">${section.label}</div><div class="nav-steps">`;
+                  section.steps.forEach((s,i) => {
+                    h += `<div class="nav-step">
+                      <div class="nav-step-num">${i+1}</div>
+                      <div class="nav-step-body">
+                        <div class="nav-step-action">${s.action}</div>
+                        ${s.sub ? `<div class="nav-step-sub">${s.sub}</div>` : ''}
+                      </div>
+                    </div>`;
+                  });
+                  h += `</div>`;
+                } else if (section.type === 'fields') {
+                  h += `<div class="sec-divider">${section.label}</div><div class="field-table">
+                    <div class="field-table-hdr"><span>Field</span><span>Value</span><span style="text-align:center">Required</span></div>`;
+                  section.fields.forEach(f => {
+                    h += `<div class="field-row">
+                      <div class="field-name">${f.name}</div>
+                      <div class="field-value">${f.value}</div>
+                      <div class="field-req ${f.req==='Yes'?'yes':'opt'}">${f.req}</div>
+                    </div>`;
+                  });
+                  h += `</div>`;
+                } else if (section.type === 'note') {
+                  h += `<div class="note-box ${section.style||'info'}">${section.text}</div>`;
+                } else if (section.type === 'cmd') {
+                  h += `<div class="sec-divider">${section.label}</div>
+                    <div class="code-block">
+                      <div class="code-hdr"><span class="code-lang">bash</span><button class="copy-btn" onclick="doCopy(this,event)">Copy</button></div>
+                      <pre class="code-pre">${colorize(esc(section.code))}</pre>
+                    </div>`;
+                }
+              });
+            }
+            h += '</div></div>';
           });
           h += '</div></div>';
         });
-        h += '</div>';
+        // Module sign-off gate — identical structure to core weeks
+        const rem = tot - don;
+        const soDesc = w.signoff || 'Complete all tasks in this module and confirm with your HPE SE that the Kubernetes service is fully operational.';
+        if (!so) {
+          h += `<div class="signoff">
+            <div class="so-ttl">✦ ${w.label} Sign-Off Gate</div>
+            <div class="so-desc">${soDesc}</div>
+            <div class="so-rem">${rem>0 ? rem+' item'+(rem!==1?'s':'')+' remaining — complete all to enable sign-off.' : 'All items complete — ready to sign off.'}</div>
+            <button class="so-btn ready" onclick="doModSO('${w.id}')">Sign Off ${w.label} →</button>
+          </div>`;
+        } else {
+          h += `<div class="signoff">
+            <div class="so-ttl">✦ ${w.label} Complete</div>
+            <div class="so-done show"><div class="so-done-ic">✓</div>${w.label} signed off. Contact your HPE SE to proceed to the next section.</div>
+          </div>`;
+        }
       }
-      h += '</div>';
+      h += '</div></div>';
     });
   });
   return h;
@@ -3035,6 +3340,24 @@ function togTask(wid, itemId) {
   render();
   setTimeout(() => { const el=document.getElementById('ti-'+wid+'-'+itemId); if(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),600);} }, 40);
 }
+function toggleModCheck(wid, mck) {
+  if (!checks[wid]) checks[wid] = {};
+  checks[wid][mck] = !checks[wid][mck];
+  saveModWeekToAPI(wid);
+  render();
+}
+async function saveModWeekToAPI(wid) {
+  if (!API_TOKEN) return;
+  showSaveIndicator('saving');
+  try {
+    await fetch('/api/public/' + API_TOKEN + '/state', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ week_id: wid, checks: checks[wid] || {}, signoff: false })
+    });
+    showSaveIndicator('saved');
+  } catch(e) { showSaveIndicator(''); }
+}
 function sbTask(wid, itemId) {
   activeTask = {wid, itemId};
   if (!openWeeks.has(wid)) openWeeks.add(wid);
@@ -3053,6 +3376,21 @@ function doSO(wid) {
   if (!confirm('Sign off Week ' + wNum + '? This marks it as complete and notifies your HPE SE.')) return;
   signoffs[wid] = true;
   debounceSave(wid);
+  render();
+}
+function doModSO(wid) {
+  let w = null;
+  for (const weeks of Object.values(MODULE_WEEKS)) { w = weeks.find(x => x.id===wid); if (w) break; }
+  if (!w) return;
+  const tot = w.groups.reduce((s,g) => s+g.items.length, 0);
+  const don = Object.values(checks[wid]||{}).filter(Boolean).length;
+  const rem = tot - don;
+  const msg = rem > 0
+    ? `${rem} item${rem!==1?'s':''} in this module ${rem!==1?'are':'is'} not yet checked.\n\nSign off ${w.label} anyway? Your HPE SE can review any deferred items.`
+    : `Sign off ${w.label}? This marks the module as complete.`;
+  if (!confirm(msg)) return;
+  signoffs[wid] = true;
+  saveModWeekToAPI(wid);
   render();
 }
 function bulkComplete(wid) {
