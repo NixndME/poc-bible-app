@@ -224,6 +224,14 @@ app.include_router(smartsheet_router)
 
 
 # Page routes
+# Cache-Control: no-cache on all HTML pages so browsers always revalidate.
+# Prevents Chrome (and others) from serving stale cached HTML after a deploy.
+NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
 @app.get("/")
 async def root():
     return RedirectResponse(url="/login")
@@ -231,19 +239,19 @@ async def root():
 
 @app.get("/login")
 async def login_page():
-    return FileResponse(os.path.join(STATIC_DIR, "login.html"))
+    return FileResponse(os.path.join(STATIC_DIR, "login.html"), headers=NO_CACHE_HEADERS)
 
 
 @app.get("/admin")
 async def admin_page():
-    return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
+    return FileResponse(os.path.join(STATIC_DIR, "admin.html"), headers=NO_CACHE_HEADERS)
 
 
 @app.get("/dashboard")
 async def dashboard_page():
-    return FileResponse(os.path.join(STATIC_DIR, "dashboard.html"))
+    return FileResponse(os.path.join(STATIC_DIR, "dashboard.html"), headers=NO_CACHE_HEADERS)
 
 
 @app.get("/poc/{token}")
 async def customer_poc_page(token: str):
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"), headers=NO_CACHE_HEADERS)
