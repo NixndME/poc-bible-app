@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POC Bible Dashboard</title>
+<style>
+
+[data-theme="light"]{
+  --pg-bg:#F4F6F9;--pg-surface:#fff;--pg-surface2:#F0F4F8;
+  --pg-border:#DDE3EC;--pg-border2:#C5CDD9;
+  --pg-text:#111827;--pg-text2:#6B7280;--pg-text3:#9CA3AF;
+  --pg-hpe-bg:#E1F5EE;--pg-hpe-border:#5DCAA5;--pg-hpe-text:#085041;
+  --pg-danger-bg:#FEF2F2;--pg-danger-border:#FECACA;--pg-danger-text:#991B1B;
+}
+[data-theme="dark"]{
+  --pg-bg:#111113;--pg-surface:#1A1A1C;--pg-surface2:#222225;
+  --pg-border:#2E2E33;--pg-border2:#3A3A40;
+  --pg-text:#EDEDED;--pg-text2:#9B9BA4;--pg-text3:#5A5A63;
+  --pg-hpe-bg:rgba(1,169,130,.12);--pg-hpe-border:rgba(1,169,130,.3);--pg-hpe-text:#6EE7B7;
+  --pg-danger-bg:rgba(239,68,68,.08);--pg-danger-border:rgba(239,68,68,.25);--pg-danger-text:#FCA5A5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--pg-bg);color:var(--pg-text);min-height:100vh}
+/* TOPBAR */
+.topbar{background:var(--pg-surface);border-bottom:0.5px solid var(--pg-border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.tb-left{display:flex;align-items:center;gap:10px}
+.hpe-badge{background:#01A982;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;letter-spacing:.04em}
+.tb-sep{width:0.5px;height:16px;background:#DDE3EC}
+.tb-title{font-size:14px;font-weight:600}
+.role-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+.role-se{background:#E1F5EE;color:#085041}
+.role-partner{background:#EFF6FF;color:#0C447C}
+.tb-right{display:flex;align-items:center;gap:10px}
+.tb-user{font-size:12px;color:#6B7280}
+.btn-new-tb{display:flex;align-items:center;gap:5px;padding:6px 14px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-new-tb:hover{background:#0F6E56}
+.btn-so{font-size:12px;color:#6B7280;cursor:pointer;padding:4px 10px;border-radius:6px;border:0.5px solid #DDE3EC;background:transparent}
+.btn-so:hover{color:#DC2626;border-color:#FECACA}
+/* CREATE FORM PANEL */
+.create-panel{background:var(--pg-surface);border-bottom:0.5px solid var(--pg-border);display:none;overflow-y:auto;max-height:calc(100vh - 60px)}
+.create-panel.open{display:block}
+.cp-inner{padding:16px 24px 20px}
+.cp-title{font-size:13px;font-weight:600;margin-bottom:14px}
+.form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.form-grid-2{display:grid;grid-template-columns:repeat(2,1fr) auto;gap:10px;align-items:end}
+.fl{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.fi{width:100%;padding:7px 10px;border:0.5px solid #DDE3EC;border-radius:7px;font-size:12px;color:#111827;background:#fff;outline:none;font-family:inherit}
+.fi:focus{border-color:#01A982}
+.mods-row{display:flex;gap:5px;flex-wrap:wrap}
+.mod-chip{font-size:11px;padding:3px 9px;border-radius:20px;border:0.5px solid #DDE3EC;color:#6B7280;cursor:pointer;background:#fff;user-select:none}
+.mod-chip.sel{background:#E1F5EE;border-color:#5DCAA5;color:#085041}
+.btn-create{padding:8px 20px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn-create:hover{background:#0F6E56}
+.form-msg{font-size:11px;padding:7px 10px;border-radius:6px;margin-top:8px;display:none}
+.form-msg.ok{background:#E1F5EE;color:#085041;border:0.5px solid #5DCAA5}
+.form-msg.err{background:#FEF2F2;color:#991B1B;border:0.5px solid #FECACA}
+/* MAIN CONTENT */
+.content{max-width:1100px;margin:0 auto;padding:20px 24px}
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.fchip{font-size:12px;padding:5px 14px;border:0.5px solid #DDE3EC;border-radius:20px;color:#6B7280;cursor:pointer;background:#fff;user-select:none;transition:all .15s}
+.fchip:hover{border-color:#86CEBA;color:#0F6E56}
+.fchip.active{background:#01A982;color:#fff;border-color:#01A982}
+.poc-count{font-size:12px;color:#9CA3AF;margin-left:auto}
+/* POC ACCORDION */
+.poc-row{background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .15s}
+.poc-row:hover{border-color:#86CEBA}
+.poc-row.expanded{border-color:#01A982}
+.poc-header{padding:14px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none}
+.poc-header:hover{background:#FAFFFE}
+.poc-av{width:38px;height:38px;border-radius:9px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0F6E56;flex-shrink:0}
+.poc-info{flex:1;min-width:0}
+.poc-name{font-size:14px;font-weight:600}
+.poc-meta{font-size:11px;color:#6B7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.poc-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.poc-prog-block{text-align:right}
+.poc-pct{font-size:14px;font-weight:700;color:#01A982}
+.poc-items-text{font-size:11px;color:#9CA3AF;margin-top:1px}
+.poc-bar-h{width:80px;height:4px;background:var(--pg-border);border-radius:2px;overflow:hidden;margin-top:4px;margin-left:auto}
+.poc-bar-hf{height:100%;background:#01A982;border-radius:2px}
+.sbadge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;display:inline-block}
+.sb-active{background:#E1F5EE;color:#085041}
+.sb-blocked{background:#FEF2F2;color:#991B1B}
+.sb-expired{background:#FFF3E0;color:#7C3A00}
+.sb-completed{background:#E6F1FB;color:#0C447C}
+.poc-actions{display:flex;gap:5px;align-items:center}
+.pa-btn{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;border:0.5px solid #DDE3EC;color:#6B7280;background:#fff;white-space:nowrap}
+.pa-btn:hover{border-color:#01A982;color:#01A982}
+.pa-btn.red{border-color:#FECACA;color:#991B1B}
+.pa-btn.red:hover{background:#FEF2F2}
+.pa-btn.grn{border-color:#5DCAA5;color:#085041}
+.pa-btn.grn:hover{background:#E1F5EE}
+.poc-chev{color:#9CA3AF;font-size:14px;line-height:1;transition:transform .2s}
+.poc-chev.open{transform:rotate(180deg)}
+/* EXPANDED BODY */
+.poc-body{display:none;border-top:0.5px solid #F0F4F8}
+.poc-body.open{display:block}
+.pb-inner{background:var(--pg-surface)}
+.stat-box{background:var(--pg-surface2)!important}
+.week-block{background:var(--pg-surface)}
+.week-header{background:var(--pg-surface)!important}
+.grp-row{border-bottom-color:var(--pg-border)!important}
+.pb-inner{padding:16px 18px 18px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stat-box{background:#F4F6F9;border-radius:8px;padding:10px 14px}
+.stat-lbl{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.stat-val{font-size:20px;font-weight:600}
+.stat-val .sub{font-size:13px;color:#9CA3AF;font-weight:400}
+.stat-val.green{color:#01A982}
+.stat-bar{margin-top:5px;height:3px;background:#E5E7EB;border-radius:2px;overflow:hidden}
+.stat-bar-f{height:100%;background:#01A982;border-radius:2px}
+/* WEEK ROWS */
+.weeks-list{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.week-block{border:0.5px solid #DDE3EC;border-radius:9px;overflow:hidden}
+.week-block.wk-done{border-color:#9FE1CB}
+.week-block.wk-prog{border-color:#B5D4F4}
+.week-header{padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;background:#fff}
+.week-header:hover{background:#F9FBFD}
+.wk-num{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.wkn-done{background:#E1F5EE;color:#085041}
+.wkn-prog{background:#E6F1FB;color:#0C447C}
+.wkn-nil{background:#F4F6F9;color:#9CA3AF}
+.wk-label{flex:1;font-size:12px;font-weight:500}
+.wk-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.wk-so{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#E1F5EE;color:#085041}
+.wk-pct{font-size:12px;font-weight:700;min-width:30px;text-align:right}
+.pct-g{color:#01A982}
+.pct-dim{color:#9CA3AF}
+.wk-bar{width:56px;height:3px;background:#E5E7EB;border-radius:2px;overflow:hidden}
+.wk-bar-f{height:100%;background:#01A982;border-radius:2px}
+.wk-chev{color:#9CA3AF;font-size:13px;line-height:1;transition:transform .2s}
+.wk-chev.open{transform:rotate(180deg)}
+.week-body{display:none;border-top:0.5px solid #F0F4F8}
+.week-body.open{display:block}
+.grp-row{padding:8px 14px 7px 50px;border-bottom:0.5px solid #F8F9FA}
+.grp-row:last-of-type{border-bottom:none}
+.grp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.grp-name{font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.06em}
+.grp-count{font-size:11px;font-weight:600;color:#374151}
+.grp-bar{height:3px;background:#E5E7EB;border-radius:2px;overflow:hidden}
+.grp-bar-f{height:100%;background:#01A982;border-radius:2px}
+.week-footer{padding:8px 14px 8px 50px;border-top:0.5px solid #F0F4F8;background:#F9FBFD;display:flex;align-items:center;justify-content:space-between}
+.wf-meta{font-size:11px;color:#9CA3AF}
+.btn-copy-wk{font-size:11px;font-weight:600;padding:4px 11px;border:0.5px solid #DDE3EC;border-radius:6px;color:#6B7280;background:#fff;cursor:pointer}
+.btn-copy-wk:hover{border-color:#01A982;color:#01A982}
+.sinput-d{padding:6px 10px;border:0.5px solid var(--pg-border);border-radius:7px;font-size:12px;color:var(--pg-text)!important;background:var(--pg-surface)!important;outline:none}
+[data-theme='dark'] .sinput-d{color-scheme:dark}
+.btn-copy-wk.copied{border-color:#01A982;color:#085041;background:#E1F5EE}
+.fi.ss-val{background:#E1F5EE;border-color:#5DCAA5;color:#085041;cursor:default;min-height:32px}
+.fi.ss-val:empty::before{content:'—';color:#9CA3AF}
+.env-chip{display:inline-flex;align-items:center;font-size:10px;padding:2px 8px;border-radius:20px;border:0.5px solid #5DCAA5;color:#085041;background:#E1F5EE;margin:2px}
+/* POC FOOTER */
+.poc-footer{display:flex;align-items:center;gap:8px;padding-top:4px}
+.btn-copy-full{display:flex;align-items:center;gap:5px;padding:7px 16px;background:#01A982;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-copy-full:hover{background:#0F6E56}
+.btn-copy-full.copied{background:#085041}
+.url-pill{font-size:11px;font-family:monospace;color:#0F6E56;padding:6px 12px;background:#E1F5EE;border-radius:7px;cursor:pointer;white-space:nowrap;overflow:hidden;max-width:320px;text-overflow:ellipsis}
+.url-pill:hover{background:#9FE1CB}
+.btn-block{font-size:11px;font-weight:600;padding:6px 12px;border:0.5px solid #FECACA;border-radius:7px;color:#991B1B;background:#fff;cursor:pointer;margin-left:auto}
+.btn-block:hover{background:#FEF2F2}
+.btn-unblock{font-size:11px;font-weight:600;padding:6px 12px;border:0.5px solid #5DCAA5;border-radius:7px;color:#085041;background:#fff;cursor:pointer;margin-left:auto}
+.btn-unblock:hover{background:#E1F5EE}
+/* EMPTY */
+.empty{text-align:center;padding:60px 24px;color:#9CA3AF;font-size:14px}
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(8px);background:#085041;color:#fff;font-size:12px;font-weight:600;padding:9px 20px;border-radius:20px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Dark mode form element overrides -- explicit hex, browser-proof */
+[data-theme='dark'] input,
+[data-theme='dark'] select,
+[data-theme='dark'] textarea {
+  background:#222225!important;
+  color:#EDEDED!important;
+  border-color:#3A3A40!important;
+  color-scheme:dark;
+}
+[data-theme='dark'] input::placeholder,
+[data-theme='dark'] textarea::placeholder {
+  color:#5A5A63!important;
+}
+[data-theme='dark'] input:focus,
+[data-theme='dark'] select:focus {
+  border-color:#01A982!important;
+  outline:none;
+}
+[data-theme='dark'] .fi,
+[data-theme='dark'] .fsel,
+[data-theme='dark'] .sinput,
+[data-theme='dark'] .sinput-d,
+[data-theme='dark'] .srch {
+  background:#222225!important;
+  color:#EDEDED!important;
+  border-color:#3A3A40!important;
+  color-scheme:dark;
+}
+
+/* SE Notes panel */
+.notes-panel{margin-top:10px;padding:12px;background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:10px}
+.notes-title{font-size:10px;font-weight:700;color:var(--pg-text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+
+.note-item:last-child{border-bottom:none}
+
+
+
+
+.note-del:hover{color:#991B1B}
+.note-input-row{display:flex;gap:6px;margin-top:8px}
+.note-input{flex:1;padding:7px 10px;border:0.5px solid var(--pg-border);border-radius:7px;font-size:12px;color:var(--pg-text);background:var(--pg-surface);font-family:inherit;resize:none;outline:none;color-scheme:light}
+[data-theme='dark'] .note-input{color-scheme:dark}
+.note-input:focus{border-color:#01A982}
+.btn-add-note{padding:7px 14px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
+
+/* Resizable pane handle */
+.pane-handle{width:5px;flex-shrink:0;background:transparent;cursor:col-resize;transition:background .15s;position:relative;z-index:10}
+.pane-handle:hover,.pane-handle.dragging{background:var(--pg-hpe-border)}
+.pane-handle::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:40px;background:var(--pg-border);border-radius:1px}
+/* Detail pane hint when nothing selected */
+.dp-hint{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--pg-text3);font-size:13px}
+.dp-hint-icon{font-size:32px;opacity:.3}
+/* Smooth detail pane open */
+.detail-pane{transition:width .15s ease}
+/* Loading state for buttons */
+.btn-loading{opacity:.7;pointer-events:none}
+/* Mobile responsive */
+@media(max-width:768px){
+  .topbar{padding:0 12px;flex-wrap:wrap;height:auto;gap:6px;padding-top:8px;padding-bottom:8px}
+  .tb-right{flex-wrap:wrap;gap:4px}
+  .btn-new-tb{font-size:11px;padding:4px 10px}
+  .poc-head{flex-wrap:wrap;gap:6px}
+  .poc-info{min-width:0;width:100%}
+  .poc-r{flex-wrap:wrap;gap:6px;width:100%;justify-content:flex-end}
+  .stat-grid{grid-template-columns:1fr 1fr!important}
+  .igrid,.intel-grid{grid-template-columns:1fr!important}
+  .create-panel .ss-details .ucp-grid{grid-template-columns:1fr!important}
+  .toolbar{flex-wrap:wrap;gap:5px}
+  .fchip{font-size:11px;padding:3px 10px}
+  .poc-footer{flex-wrap:wrap;gap:6px}
+  .url-pill{width:100%;order:3}
+}
+
+/* Dashboard layout */
+.dashboard-layout{display:flex;min-height:calc(100vh - 52px - 48px)}
+.notes-pane-handle{width:0;flex-shrink:0;background:transparent;cursor:col-resize;transition:background .15s;position:relative;z-index:10;display:none}
+.notes-pane-handle.visible{width:5px;display:block}
+.notes-pane-handle:hover,.notes-pane-handle.dragging{background:var(--pg-hpe-border)}
+.notes-pane-handle::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:40px;background:var(--pg-border);border-radius:1px}
+.notes-pane{width:0;flex-shrink:0;background:var(--pg-surface);border-left:0;overflow:hidden;display:flex;flex-direction:column;transition:width .22s ease,border-left-width .22s ease;height:calc(100vh - 52px - 48px);position:relative}
+.notes-pane.open{width:230px;border-left:0.5px solid var(--pg-border)}
+.np-inner{min-width:230px;display:flex;flex-direction:column;height:100%;overflow:hidden}
+.np-head{padding:10px 13px;border-bottom:0.5px solid var(--pg-border);display:flex;align-items:center;gap:7px;flex-shrink:0}
+.np-head-title{font-size:12px;font-weight:700;color:var(--pg-text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-close-btn{font-size:14px;color:var(--pg-text3);cursor:pointer;line-height:1;padding:2px;background:none;border:none;flex-shrink:0}
+.np-close-btn:hover{color:var(--pg-text)}
+.np-scroll{flex:1;overflow-y:auto;padding:10px 13px}
+.np-entry{background:var(--pg-surface2);border-left:2px solid #F59E0B;border-radius:8px;padding:9px 11px;margin-bottom:8px}
+.np-entry-tags{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:4px}
+.np-tag-week{font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.np-tag-sec{font-size:9px;font-weight:600;padding:1px 6px;border-radius:8px;background:#EFF6FF;color:#1E40AF}
+.np-tag-new{font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#FFF3E0;color:#7C3A00}
+.np-entry-time{font-size:10px;color:var(--pg-text3);margin-bottom:3px}
+.np-entry-text{font-size:12px;color:var(--pg-text);line-height:1.5}
+.np-empty{font-size:11px;color:var(--pg-text3);text-align:center;padding:24px 12px;line-height:1.6}
+.ntl-wk{margin-bottom:12px}
+.ntl-wk-hdr{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.ntl-wk-num{width:26px;height:26px;border-radius:50%;border:2px solid var(--warn-color,#F59E0B);background:#FFFBEB;color:#92400E;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.ntl-wk-lbl{font-size:12px;font-weight:700;color:var(--pg-text)}
+.ntl-sec{margin-left:20px;border-left:1.5px solid var(--pg-border);padding-left:9px;margin-bottom:6px}
+.ntl-sec-hdr{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.ntl-sec-dot{width:7px;height:7px;border-radius:50%;background:#F59E0B;flex-shrink:0}
+.ntl-sec-name{font-size:10px;font-weight:700;color:var(--pg-text2)}
+.ntl-item-name{font-size:10px;color:var(--pg-text3);font-style:italic;margin:3px 0 2px}
+.ntl-card{background:var(--pg-surface2);border-radius:7px;padding:7px 9px;margin-bottom:5px}.ntl-reply{margin:3px 0 6px 12px;padding:6px 9px;background:rgba(1,169,130,.07);border-left:2px solid #01A982;border-radius:0 6px 6px 0}.ntl-reply-meta{font-size:9px;color:#01A982;font-weight:700;margin-bottom:2px}.ntl-reply-txt{font-size:10px;color:var(--pg-text);line-height:1.5}.ntl-reply-input{display:flex;gap:5px;align-items:flex-end;margin:3px 0 6px 12px}.ntl-reply-ta{flex:1;font-size:10px;padding:5px 7px;border:1px solid var(--pg-border2);border-radius:6px;background:var(--pg-bg);color:var(--pg-text);resize:none;font-family:inherit;outline:none}.ntl-reply-ta:focus{border-color:#01A982}.ntl-reply-btn{background:#01A982;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer}.ntl-reply-link{background:none;border:none;color:var(--pg-text3);cursor:pointer;font-size:10px;font-weight:600;padding:2px 0;margin:2px 0 8px 0;display:inline-block;opacity:0.7;}.ntl-reply-link:hover{opacity:1;color:var(--pg-hpe-text)}
+.ntl-time{font-size:10px;color:var(--pg-text3);margin-bottom:2px}
+.ntl-text{font-size:12px;line-height:1.5;color:var(--pg-text)}
+.amber-dot{width:8px;height:8px;border-radius:50%;background:#F59E0B;flex-shrink:0;cursor:pointer}
+.ws-grp-row.has-note{cursor:pointer}
+.ws-grp-row.has-note:hover{background:var(--pg-surface)}
+.ws-grp-row.grp-note-sel{background:#FFFBEB;border-left:2px solid #F59E0B}
+.list-pane{flex:0 0 35%;min-width:260px;max-width:70%;padding:14px 16px;overflow-y:auto}
+.detail-pane{flex:1;min-width:0;background:var(--pg-surface);border-left:0.5px solid var(--pg-border);overflow-y:auto;position:sticky;top:52px;height:calc(100vh - 52px - 48px);transition:transform .25s ease}
+@media(max-width:1024px) and (min-width:769px){.list-pane{flex:0 0 40%;min-width:240px}}
+@media(max-width:768px){
+  .list-pane{flex:0 0 100% !important;max-width:100% !important;min-width:0 !important}
+  .detail-pane{position:fixed;inset:0;z-index:200;width:100% !important;min-width:0 !important;transform:translateX(100%);display:block !important;height:100vh !important;top:0 !important}
+  .detail-pane.mobile-open{transform:translateX(0)}
+  .pane-handle{display:none !important}
+  .mobile-back-btn{display:flex !important}
+}
+
+/* Summary strip */
+.summary-strip{background:var(--pg-surface);border-bottom:0.5px solid var(--pg-border);display:grid;grid-template-columns:repeat(5,1fr)}
+.ss-cell{padding:8px 14px;border-right:0.5px solid var(--pg-border);cursor:pointer}
+.ss-cell:last-child{border-right:none}
+.ss-cell:hover{background:var(--pg-surface2)}
+.ss-k{font-size:10px;color:var(--pg-text3);margin-bottom:1px}
+.ss-v{font-size:18px;font-weight:600;color:var(--pg-text)}
+.ss-v.g{color:#01A982}
+.ss-v.a{color:#D97706}
+.ss-v.r{color:#EF4444}
+
+/* Compact POC row */
+.pr{background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:10px;margin-bottom:5px;overflow:hidden;cursor:pointer;transition:border-color .12s}
+.pr:hover{border-color:#86CEBA}
+.pr.sel{border-color:#01A982;border-width:1.5px}
+.pr.pr-warn{border-left:3px solid #F59E0B;border-radius:0 10px 10px 0}
+.pr.pr-err{border-left:3px solid #EF4444;border-radius:0 10px 10px 0}
+.pr-row{padding:9px 12px;display:flex;align-items:center;gap:10px}
+.pr-av{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.pr-info{flex:1;min-width:0}
+.pr-name{font-size:12px;font-weight:600;color:var(--pg-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-meta{font-size:10px;color:var(--pg-text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-right{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sd-g{background:#01A982}
+.sd-a{background:#F59E0B}
+.sd-r{background:#EF4444}
+.pr-bar{width:50px;height:3px;background:var(--pg-border2);border-radius:2px;overflow:hidden}
+.pr-barf{height:100%;background:#01A982;border-radius:2px}
+.pr-barf.a{background:#F59E0B}
+.pr-pct{font-size:11px;font-weight:600;color:#01A982;min-width:30px;text-align:right}
+.pr-pct.a{color:#D97706}
+.days-pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.dp-ok{background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.dp-warn{background:#FFF8E1;color:#7C4A00}
+.dp-err{background:var(--pg-danger-bg);color:var(--pg-danger-text)}
+.pr-status{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px}
+.ps-act{background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.ps-blk{background:var(--pg-danger-bg);color:var(--pg-danger-text)}
+.ps-done{background:var(--pg-surface2);color:var(--pg-text3)}
+.note-badge{font-size:10px;color:var(--pg-text3)}
+
+/* Quick action strip (selected row) */
+.qa-strip{padding:6px 12px 8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-top:0.5px solid var(--pg-border)}
+.mobile-back-btn{display:none;align-items:center;gap:6px;padding:8px 14px;font-size:12px;font-weight:500;color:var(--pg-text2);cursor:pointer;border:none;background:none;border-bottom:0.5px solid var(--pg-border);width:100%;flex-shrink:0}
+.mobile-back-btn:hover{background:var(--pg-surface2)}
+.qa-btn{font-size:10px;font-weight:600;padding:3px 9px;border-radius:5px;border:0.5px solid var(--pg-border);color:var(--pg-text2);background:transparent;cursor:pointer;white-space:nowrap}
+.qa-btn:hover{border-color:#01A982;color:#01A982}
+.qa-sync{border-color:var(--pg-hpe-border)!important;color:var(--pg-hpe-text)!important;background:var(--pg-hpe-bg)!important}
+.qa-block{border-color:var(--pg-danger-border)!important;color:var(--pg-danger-text)!important}
+.qa-meta{font-size:10px;color:var(--pg-text3);margin-left:auto}
+
+/* Detail pane */
+.dp-hdr{padding:13px 16px;border-bottom:0.5px solid var(--pg-border);position:sticky;top:0;background:var(--pg-surface);z-index:2;display:flex;align-items:flex-start;justify-content:space-between}
+.dp-title{font-size:14px;font-weight:600;color:var(--pg-text)}
+.dp-sub{font-size:11px;color:var(--pg-text2);margin-top:2px}
+.dp-close{font-size:12px;color:var(--pg-text3);cursor:pointer;padding:4px 8px;border-radius:5px;border:0.5px solid var(--pg-border);background:transparent;flex-shrink:0}
+.dp-body{padding:14px 16px}
+.dp-sec{margin-bottom:16px}
+.dp-sec-t{font-size:10px;font-weight:700;color:var(--pg-text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.dp-dot{width:6px;height:6px;border-radius:50%;background:#01A982;flex-shrink:0}
+.dp-dot.a{background:#F59E0B}
+.dp-dot.r{background:#EF4444}
+
+/* Sync cells in detail */
+.sync-2x2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.sync-c{background:var(--pg-surface2);border-radius:7px;padding:8px 10px}
+.sync-ck{font-size:10px;color:var(--pg-text3);margin-bottom:1px}
+.sync-cv{font-size:12px;font-weight:600;color:var(--pg-text)}
+.sync-cv.g{color:#01A982}
+
+/* Sync push panel */
+.push-panel{background:var(--pg-surface2);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.push-modes{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px}
+.push-mode{border:0.5px solid var(--pg-border);border-radius:7px;padding:7px 8px;cursor:pointer;text-align:center}
+.push-mode.active{border-color:#01A982;background:var(--pg-hpe-bg)}
+.push-mode-l{font-size:11px;font-weight:600;color:var(--pg-text)}
+.push-mode-s{font-size:10px;color:var(--pg-text3)}
+.push-ta{width:100%;padding:7px 9px;border:0.5px solid var(--pg-border);border-radius:7px;font-size:11px;color:var(--pg-text);background:var(--pg-surface);resize:none;font-family:inherit;outline:none;margin-bottom:8px;display:block;color-scheme:light}
+[data-theme='dark'] .push-ta{color-scheme:dark}
+.push-preview{background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:10px;font-family:monospace;color:var(--pg-text2);line-height:1.7;white-space:pre-wrap;max-height:120px;overflow-y:auto}
+.push-preview .ph{color:#01A982;font-weight:600}
+.btn-push{width:100%;padding:8px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer}
+
+/* Week summary in detail */
+.week-summary{display:flex;flex-direction:column;gap:4px}
+.ws-row{border:0.5px solid var(--pg-border);border-radius:8px;overflow:hidden;background:var(--pg-surface)}
+.ws-row.ws-done{border-color:var(--pg-hpe-border)}
+.ws-row.ws-prog{border-color:#B5D4F4}
+.ws-hdr{padding:8px 11px;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.ws-hdr:hover{background:var(--pg-surface2)}
+.ws-body{border-top:0.5px solid var(--pg-border);background:var(--pg-bg);display:none}
+.ws-body.open{display:block}
+.ws-grp-row{padding:7px 12px 7px 34px;border-bottom:0.5px solid var(--pg-border);display:flex;align-items:center;gap:6px;min-width:0}
+.ws-grp-name{font-size:11px;color:var(--pg-text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-grp-ct{font-size:11px;font-weight:600;flex-shrink:0;min-width:40px;text-align:right}
+.ws-grp-bar{width:36px;height:3px;background:var(--pg-border2);border-radius:2px;overflow:hidden;flex-shrink:0}
+.ws-grp-barf{height:100%;border-radius:2px}
+.ws-grp-row:last-child{border-bottom:none}
+/* duplicate .ws-row rule removed — card layout uses the definition above */
+.ws-num{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.ws-done{background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.ws-act{background:#EFF6FF;color:#1E40AF}
+.ws-lock{background:var(--pg-surface);color:var(--pg-text3)}
+.ws-lbl{flex:1;font-size:11px;font-weight:500;color:var(--pg-text)}
+.ws-pct{font-size:11px;font-weight:600;color:#01A982}
+.ws-pct.dim{color:var(--pg-text3)}
+.ws-so{font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+
+/* Detail notes */
+
+.dn-item:last-child{border-bottom:none}
+
+
+
+
+/* Block confirm */
+.block-confirm{background:var(--pg-danger-bg);border:0.5px solid var(--pg-danger-border);border-radius:8px;padding:10px 12px;margin-top:8px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.bc-msg{font-size:12px;color:var(--pg-danger-text);flex:1}
+.btn-bc{font-size:11px;font-weight:600;padding:5px 12px;background:#EF4444;color:#fff;border:none;border-radius:6px;cursor:pointer}
+.btn-bcancel{font-size:11px;padding:5px 12px;border:0.5px solid var(--pg-border);border-radius:6px;color:var(--pg-text2);background:transparent;cursor:pointer}
+
+[data-theme='dark'] .grp-count{color:var(--pg-text2)}
+[data-theme='dark'] .sb-blocked{background:rgba(239,68,68,.12);color:#FCA5A5;border-color:rgba(239,68,68,.25)}
+[data-theme='dark'] .sb-expired{background:rgba(217,119,6,.1);color:#FCD34D;border-color:rgba(217,119,6,.25)}
+[data-theme='dark'] .sb-completed{background:rgba(59,130,246,.1);color:#93C5FD;border-color:rgba(59,130,246,.2)}
+[data-theme='dark'] .sb-active{background:rgba(1,169,130,.1);color:#6EE7B7;border-color:rgba(1,169,130,.25)}
+[data-theme='dark'] .role-partner{background:rgba(59,130,246,.1);color:#93C5FD}
+[data-theme='dark'] .role-se{background:rgba(1,169,130,.1);color:#6EE7B7}
+[data-theme='dark'] .btn-block{background:var(--pg-surface);border-color:rgba(239,68,68,.35);color:#FCA5A5}
+[data-theme='dark'] .btn-block:hover{background:rgba(239,68,68,.1)}
+[data-theme='dark'] .btn-unblock{background:var(--pg-surface);border-color:rgba(1,169,130,.35);color:#6EE7B7}
+[data-theme='dark'] .btn-unblock:hover{background:rgba(1,169,130,.1)}
+[data-theme='dark'] .btn-so:hover{color:#FCA5A5;border-color:rgba(239,68,68,.3)}
+[data-theme='dark'] .env-chip{background:rgba(1,169,130,.12);border-color:rgba(1,169,130,.3);color:#6EE7B7}
+[data-theme='dark'] .url-pill{background:rgba(1,169,130,.1);color:#6EE7B7}
+[data-theme='dark'] .url-pill:hover{background:rgba(1,169,130,.18)}
+[data-theme='dark'] .fi.ss-val{background:rgba(1,169,130,.1);border-color:rgba(1,169,130,.3);color:#6EE7B7}
+[data-theme='dark'] .wkn-prog{background:rgba(59,130,246,.1);color:#93C5FD}
+[data-theme='dark'] .wkn-done{background:rgba(1,169,130,.1);color:#6EE7B7}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-left">
+    <div class="hpe-badge">HPE</div>
+    <div class="tb-sep"></div>
+    <div class="tb-title">POC Bible Dashboard</div>
+    <span class="role-badge" id="tb-role"></span>
+  </div>
+  <div class="tb-right">
+    <span class="tb-user" id="tb-user"></span>
+    <button class="btn-new-tb" id="btn-new" onclick="toggleCreate()">+ New POC</button>
+    <button class="btn-so" id="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
+    
+    <button class="btn-so" onclick="logout()">Sign out</button>
+  </div>
+</div>
+
+<div class="create-panel" id="create-panel">
+  <div class="cp-inner">
+    <div class="cp-title">Create new POC</div>
+    <div id="form-msg" class="form-msg"></div>
+
+    <!-- Step 1: POC ID lookup (only field the SE types) -->
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:6px">
+      <div style="flex:1">
+        <div class="fl">POC Reference ID</div>
+        <input class="fi" id="p-id" placeholder="POC-202605-042"
+          oninput="onPocIdInput(this.value)"
+          onkeydown="if(event.key==='Enter')lookupPocId()"
+          style="font-family:monospace">
+      </div>
+      <button type="button" onclick="lookupPocId()" id="btn-lookup"
+        style="padding:8px 14px;background:#F4F6F9;border:0.5px solid #DDE3EC;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;color:#374151;flex-shrink:0;margin-bottom:0">
+        🔍 Lookup
+      </button>
+    </div>
+    <div id="ss-status" style="font-size:11px;margin-bottom:8px;display:none;padding:6px 10px;border-radius:6px"></div>
+
+    <!-- Auto-filled sections (hidden until verified) -->
+    <div id="ss-details" style="display:none">
+      <div style="background:#F4F6F9;border-radius:8px;padding:12px 14px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+          Customer details
+          <span style="font-size:10px;font-weight:600;padding:2px 8px;background:#E1F5EE;color:#085041;border-radius:10px;text-transform:none">From Smartsheet</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div><div class="fl">Customer name</div><div class="fi ss-val" id="d-customer"></div></div>
+          <div><div class="fl">Product family</div><div class="fi ss-val" id="d-product"></div></div>
+        </div>
+        <div id="contact-section" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div><div class="fl">Customer contact</div><div class="fi ss-val" id="d-contact"></div></div>
+          <div><div class="fl">Contact email</div><div class="fi ss-val" id="d-contact-email"></div></div>
+        </div>
+        <div id="non-owner-note" style="display:none;font-size:11px;color:#9CA3AF;padding:6px 8px;background:#F9FAFB;border-radius:6px;margin-bottom:8px">
+          Contact details are only visible to the assigned SE on this POC.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div class="fl">Region</div><div class="fi ss-val" id="d-region"></div></div>
+          <div><div class="fl">Sub-region</div><div class="fi ss-val" id="d-subregion"></div></div>
+        </div>
+      </div>
+
+      <div style="background:#F4F6F9;border-radius:8px;padding:12px 14px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Technical environment</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div>
+            <div class="fl">On-prem hypervisors</div>
+            <div id="d-onprem-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"></div>
+          </div>
+          <div>
+            <div class="fl">Public cloud</div>
+            <div id="d-cloud-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"></div>
+          </div>
+          <div><div class="fl">Morpheus version</div><div class="fi ss-val" id="d-version"></div></div>
+        </div>
+      </div>
+
+      <div style="background:#F4F6F9;border-radius:8px;padding:12px 14px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">License &amp; duration</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div><div class="fl">License type</div><div class="fi ss-val" id="d-license"></div></div>
+          <div><div class="fl">Approved sockets</div><div class="fi ss-val" id="d-sockets"></div></div>
+          <div><div class="fl">Start date</div><div class="fi ss-val" id="d-start"></div></div>
+          <div><div class="fl">End date</div><div class="fi ss-val" id="d-end"></div></div>
+        </div>
+      </div>
+
+      <div style="background:#F4F6F9;border-radius:8px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+          Modules
+          <span style="font-size:10px;font-weight:400;color:#9CA3AF;text-transform:none">Auto-detected from Smartsheet · toggle to override</span>
+        </div>
+        <div class="mods-row">
+          <div class="mod-chip" id="m-hvm" data-key="hvm" onclick="toggleModule(this)">HVM / VM Essentials</div>
+          <div class="mod-chip" id="m-hks" data-key="hks" onclick="toggleModule(this)">HKS / MKS</div>
+          <div class="mod-chip" id="m-terraform" data-key="terraform" onclick="toggleModule(this)">Terraform</div>
+          <div class="mod-chip" id="m-ansible" data-key="ansible" onclick="toggleModule(this)">Ansible</div>
+        </div>
+        <div id="mod-auto-note" style="font-size:10px;color:#9CA3AF;margin-top:6px"></div>
+      </div>
+
+      <button class="btn-create" id="btn-create-poc" onclick="createPoc()">Create POC</button>
+    </div>
+
+    <!-- Hidden fields -->
+    <input type="hidden" id="ss-row-id" value="">
+    <input type="hidden" id="ss-end-date" value="">
+    <input type="hidden" id="ss-status-val" value="">
+    <input type="hidden" id="ss-is-owner" value="">
+    <input type="hidden" id="ss-contact-name" value="">
+    <input type="hidden" id="ss-contact-email" value="">
+    <input type="hidden" id="ss-subregion" value="">
+    <input type="hidden" id="ss-onprem" value="">
+    <input type="hidden" id="ss-cloud" value="">
+    <input type="hidden" id="ss-usecase" value="">
+    <input type="hidden" id="ss-version" value="">
+    <input type="hidden" id="ss-sockets" value="">
+    <input type="hidden" id="ss-product-family" value="">
+    <input type="hidden" id="ss-license-type" value="">
+    <input type="hidden" id="ss-using-hvm" value="">
+    <input type="hidden" id="ss-using-k8s" value="">
+  </div>
+</div>
+
+<!-- Summary strip -->
+<div class="summary-strip" id="summary-strip">
+  <div class="ss-cell" onclick="setFilter2('active')"><div class="ss-k">Active POCs</div><div class="ss-v g" id="ss-active">0</div></div>
+  <div class="ss-cell" onclick="setFilter2('expiring')"><div class="ss-k">Expiring in 7 days</div><div class="ss-v a" id="ss-expiring">0</div></div>
+  <div class="ss-cell" onclick="setFilter2('blocked')"><div class="ss-k">Blocked</div><div class="ss-v r" id="ss-blocked">0</div></div>
+  <div class="ss-cell" onclick="setFilter2('stale')"><div class="ss-k">Sync overdue (&gt;7d)</div><div class="ss-v a" id="ss-stale">0</div></div>
+  <div class="ss-cell"><div class="ss-k">Completed</div><div class="ss-v" id="ss-done">0</div></div>
+</div>
+
+<!-- Main layout: list + detail panel side by side -->
+<div class="dashboard-layout" id="dashboard-layout">
+  <div class="list-pane" id="list-pane">
+    <div class="toolbar">
+      <span class="fchip active" data-filter="" onclick="setFilter(this)">All</span>
+      <span class="fchip" data-filter="active" onclick="setFilter(this)">Active</span>
+      <span class="fchip" data-filter="blocked" onclick="setFilter(this)">Blocked</span>
+      <span class="fchip" data-filter="completed" onclick="setFilter(this)">Completed</span>
+      <span class="fchip" data-filter="completion_requested" onclick="setFilter(this)">Pending</span>
+      <input class="sinput-d" placeholder="Search POCs…" oninput="setPocFilter2(this.value)" style="color-scheme:light;flex:1;max-width:200px">
+      <span class="poc-count" id="poc-count" style="margin-left:auto"></span>
+    </div>
+    <div id="poc-list"></div>
+  </div>
+  <div class="pane-handle" id="pane-handle" title="Drag to resize"></div>
+<div class="detail-pane" id="detail-pane" style="display:none">
+  <button class="mobile-back-btn" onclick="closeDetail()">← Back to list</button>
+</div>
+<div class="notes-pane-handle" id="notes-pane-handle"></div>
+<div class="notes-pane" id="notes-pane">
+  <div class="np-inner">
+    <div class="np-head">
+      <span style="font-size:14px">&#x1F4AC;</span>
+      <span class="np-head-title" id="np-head-title">Customer notes</span>
+      <button id="view-all-notes-se" onclick="showAllNotes(selectedPoc)" title="View all weeks" style="font-size:9px;font-weight:700;padding:2px 7px;border:1px solid var(--pg-border2);border-radius:6px;background:none;color:var(--pg-text2);cursor:pointer;white-space:nowrap;margin-right:4px">View all</button>
+      <button class="np-close-btn" onclick="closeNotesPane()" title="Close">&#x2715;</button>
+    </div>
+    <div style="padding:6px 13px;border-bottom:0.5px solid var(--pg-border)">
+      <input id="np-search" placeholder="Search notes…" oninput="filterNotes(this.value)"
+        style="width:100%;font-size:11px;padding:4px 8px;border:0.5px solid var(--pg-border);border-radius:6px;background:var(--pg-surface2);color:var(--pg-text);outline:none">
+    </div>
+    <div class="np-scroll" id="np-scroll">
+      <div class="np-empty">Click a section with an amber dot to see customer notes.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── WEEK / GROUP STRUCTURE ──────────────────────────────────────
+const WEEK_STRUCTURE = [
+  {id:'week1',label:'Week 1 – Installation & Setup',groups:[
+    {id:'grp-prereq',name:'Pre-installation requirements',count:6,items:['p1','p2','p3','p4','p5','p6']},
+    {id:'grp-network',name:'Network and firewall verification',count:2,items:['n1','n2']},
+    {id:'grp-install',name:'Package download and installation',count:5,items:['i1','i2','i3','i4','i5']},
+    {id:'grp-verify',name:'Post-installation verification',count:3,items:['v1','v2','v3']},
+    {id:'grp-setup',name:'Initial appliance setup and license',count:5,items:['s1','s2','s3','s4','s6']}]},
+  {id:'week2',label:'Week 2 – Add Clouds and Build Governance',groups:[
+    {id:'grp-license-planning',name:'POC license planning',count:1,items:['lp1']},
+    {id:'grp-aws',name:'Add AWS cloud',count:4,items:['aws1','aws2','aws3','aws4']},
+    {id:'grp-vmware',name:'Add VMware vCenter cloud',count:3,items:['vc1','vc2','vc3']},
+    {id:'grp-tenants',name:'Tenants and groups',count:2,items:['t1','t2']},
+    {id:'grp-roles',name:'Roles and users',count:2,items:['r1','r2']},
+    {id:'grp-policies',name:'Policies',count:5,items:['rdpol1','rdpol2','rdpol3','pol-naming','pol-tags']},
+    {id:'grp-w2verify',name:'Verify governance',count:3,items:['wv1','wv2','wv3']}]},
+  {id:'week3',label:'Week 3 – Provision Workloads and Golden Images',groups:[
+    {id:'grp-w3-aws',name:'Provision on AWS',count:3,items:['w3a1','w3a2','w3a3']},
+    {id:'grp-w3-golden-linux',name:'Linux golden image on VMware',count:3,items:['w3g1','w3g2','w3g3']},
+    {id:'grp-w3-automation',name:'Application automation and service catalog',count:4,items:['w3cy1','w3t1','w3t2','w3t3']},
+    {id:'grp-w3-golden-win',name:'Windows golden image on VMware',count:1,items:['w3w1']}]},
+  {id:'week4',label:'Week 4 – Blueprints, Multi-Cloud Catalog and FinOps',groups:[
+    {id:'grp-w4-blueprints',name:'App blueprints',count:2,items:['w4b1','w4b2']},
+    {id:'grp-w4-catalog',name:'Multi-cloud catalog item',count:3,items:['w4c1','w4c2','w4c3']},
+    {id:'grp-w4-finops',name:'FinOps – cost visibility and governance',count:3,items:['w4f1','w4f2','w4f3']}]},
+  {id:'week5',label:'Week 5 – Review, Validation and Sign-Off',groups:[
+    {id:'grp-w5-e2e',name:'End-to-end scenario run',count:1,items:['w5e1']},
+    {id:'grp-w5-health',name:'Appliance health and backup',count:2,items:['w5h1','w5h2']},
+    {id:'grp-w5-analytics',name:'Analytics, guidance and reports',count:3,items:['w5a1','w5a2','w5a3']},
+    {id:'grp-w5-signoff',name:'Success criteria review and sign-off',count:2,items:['w5s1','w5s2']}]},
+];
+
+// ── AUTH ──────────────────────────────────────────────────────────
+const API = '';
+(function(){const t=localStorage.getItem('pocbible_theme');if(t)document.documentElement.setAttribute('data-theme',t);})();
+const token = localStorage.getItem('token');
+// Session expiry warning
+(function(){
+  try {
+    const p=JSON.parse(atob(token.split('.')[1]));
+    const exp=p.exp*1000;
+    const warnAt=exp-30*60*1000; // 30 min before
+    const msToWarn=warnAt-Date.now();
+    const msToDie=exp-Date.now();
+    if(msToWarn>0) setTimeout(()=>{if(localStorage.getItem('token')===token)showToast('⚠ Session expires in 30 minutes. Please save your work and re-login.');},msToWarn);
+    if(msToDie>0) setTimeout(()=>{if(localStorage.getItem('token')!==token)return;showToast('Session expired — logging out...');setTimeout(()=>{if(localStorage.getItem('token')===token){localStorage.clear();window.location.href='/login';}},2000);},msToDie);
+  }catch(e){}
+})();
+const role  = localStorage.getItem('role');
+if (!token) window.location.href = '/login';
+document.getElementById('tb-role').textContent  = (role||'se').toUpperCase();
+document.getElementById('tb-role').className    = 'role-badge role-'+(role||'se');
+// Fetch current user profile to get the real email (never trust stale localStorage)
+const hdr = () => ({'Content-Type':'application/json','Authorization':'Bearer '+token});
+// Bug 7 fix: intercept any 401 globally and redirect to login
+(function(){
+  const _fetch = window.fetch.bind(window);  // bind required for Safari compatibility
+  window.fetch = async function(...args) {
+    const r = await _fetch(...args);
+    if (r.status === 401) { localStorage.clear(); window.location.href='/login'; }
+    return r;
+  };
+})();
+fetch(API+'/api/auth/me', {headers:hdr()}).then(r=>{
+  if(!r.ok){localStorage.clear();window.location.href='/login';return;}
+  return r.json();
+}).then(me=>{
+  if(!me) return;
+  document.getElementById('tb-user').textContent = me.email || me.name || '';
+  document.getElementById('tb-role').textContent  = (me.role||role||'se').toUpperCase();
+  document.getElementById('tb-role').className    = 'role-badge role-'+(me.role||role||'se');
+  // Keep localStorage in sync
+  localStorage.setItem('userName', me.name||me.email||'');
+  localStorage.setItem('role', me.role||role||'se');
+  // Load POC data and initialize drag handle
+  loadPocs();
+  initResizable();
+}).catch(()=>{
+  // Fallback to localStorage if network unavailable
+  document.getElementById('tb-user').textContent = localStorage.getItem('userName')||'';
+  loadPocs();
+  initResizable();
+});
+
+// ── RELATIVE TIME ──────────────────────────────────────────────
+function relTime(dateStr){
+  if(!dateStr) return '';
+  const d=new Date(dateStr), now=new Date();
+  const diff=Math.floor((now-d)/1000);
+  if(diff<60) return 'just now';
+  if(diff<3600) return Math.floor(diff/60)+'m ago';
+  if(diff<86400) return Math.floor(diff/3600)+'h ago';
+  if(diff<172800) return 'yesterday';
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────
+let _tt;
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),2500);}
+
+// ── STATE ──────────────────────────────────────────────────────────
+let allPocs = [], activeFilter = '';
+let _progress  = {};
+let selectedPoc = null;
+let _syncMode   = {};  // { pocId: 'both'|'progress'|'note' }
+let _blockConfirm = null; // pocId awaiting block confirm
+let _groupState= {};                      // { pocId: { weekId: [gDone, ...] } }
+
+// ── CREATE FORM ──────────────────────────────────────────────────
+let createOpen = false;
+function toggleCreate(){
+  createOpen = !createOpen;
+  document.getElementById('create-panel').classList.toggle('open', createOpen);
+  document.getElementById('btn-new').textContent = createOpen ? '✕ Close' : '+ New POC';
+}
+// ── SMARTSHEET LOOKUP ──────────────────────────────────────────────
+function onPocIdInput(val){
+  const normalized = val.trim().toUpperCase();
+  if(document.getElementById('ss-row-id').value) resetAutoFill();
+  if(/^POC-\d{6}-\d{3}$/.test(normalized)) lookupPocId();
+}
+
+function resetAutoFill(){
+  ['ss-row-id','ss-end-date','ss-status-val','ss-is-owner','ss-contact-name','ss-contact-email',
+   'ss-subregion','ss-onprem','ss-cloud','ss-usecase','ss-version',
+   'ss-sockets','ss-product-family','ss-license-type','ss-using-hvm','ss-using-k8s']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('ss-details').style.display='none';
+  document.getElementById('ss-status').style.display='none';
+  // Reset module chips
+  ['m-hvm','m-hks','m-terraform','m-ansible'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.classList.remove('sel');
+  });
+}
+
+function _chip(label){ return `<span class="env-chip">${label}</span>`; }
+
+async function lookupPocId(){
+  const pocId = document.getElementById('p-id').value.trim().toUpperCase();
+  if(!pocId || pocId.length < 10) return;
+  const statusEl = document.getElementById('ss-status');
+  const btn = document.getElementById('btn-lookup');
+  statusEl.style.display='block';
+  statusEl.style.background='#F4F6F9';
+  statusEl.style.color='#9CA3AF';
+  statusEl.textContent='Looking up in Smartsheet...';
+  if(btn) btn.textContent='...';
+  try{
+    const res = await fetch(API+'/api/smartsheet/lookup/'+encodeURIComponent(pocId), {headers:hdr()});
+    const data = await res.json();
+    if(!res.ok){
+      statusEl.style.background='#FEF2F2'; statusEl.style.color='#991B1B';
+      statusEl.textContent = data.detail || 'Lookup failed. Check your connection.';
+      return;
+    }
+    if(!data.found){
+      statusEl.style.background='#FEF2F2'; statusEl.style.color='#991B1B';
+      statusEl.textContent='Not found in Smartsheet tracker. Check the POC ID with your manager.';
+      return;
+    }
+
+    // Non-owner or blocked: show only the reason message, reveal nothing else
+    if(!data.allowed){
+      // Non-owner or rejected: hide everything, show only reason message
+      document.getElementById('ss-details').style.display='none';
+      const isNotOwner = data.is_owner === false;
+      statusEl.style.background = isNotOwner ? '#FFF8E1' : '#FEF2F2';
+      statusEl.style.color      = isNotOwner ? '#7C4A00' : '#991B1B';
+      statusEl.textContent      = data.reason || 'This POC cannot be activated.';
+      return;
+    }
+
+    // Owner + approved: populate all fields
+    const sv=(id,val)=>{ const e=document.getElementById(id); if(e) e.textContent=val||''; };
+    sv('d-customer', data.customer_name);
+    sv('d-product',  data.product_family);
+    sv('d-contact',  data.contact_name);
+    sv('d-contact-email', data.contact_email);
+    sv('d-region',   data.region);
+    sv('d-subregion',data.sub_region);
+    sv('d-version',  data.morpheus_version || '8.1.x');
+    sv('d-license',  data.license_type || 'Standard License');
+    sv('d-sockets',  data.approved_sockets || 'TBD');
+    sv('d-start',    data.start_date);
+    sv('d-end',      data.end_date);
+
+    const onpremEl = document.getElementById('d-onprem-chips');
+    const cloudEl  = document.getElementById('d-cloud-chips');
+    if(onpremEl) onpremEl.innerHTML = data.on_prem_hypervisors
+      ? data.on_prem_hypervisors.split(',').map(v=>_chip(v.trim())).join('')
+      : '<span style="font-size:11px;color:#9CA3AF">None</span>';
+    if(cloudEl) cloudEl.innerHTML = data.public_cloud_providers
+      ? data.public_cloud_providers.split(',').map(v=>_chip(v.trim())).join('')
+      : '<span style="font-size:11px;color:#9CA3AF">None</span>';
+
+    const mods = data.modules_auto || {};
+    const autoNotes = [];
+    if(mods.hvm){ document.getElementById('m-hvm').classList.add('sel'); autoNotes.push('HVM (from Smartsheet)'); }
+    if(mods.hks){ document.getElementById('m-hks').classList.add('sel'); autoNotes.push('HKS/MKS (from Smartsheet)'); }
+    const noteEl = document.getElementById('mod-auto-note');
+    if(noteEl) noteEl.textContent = autoNotes.length ? 'Auto-detected: '+autoNotes.join(', ') : 'No modules auto-detected. Toggle manually if needed.';
+
+    const hvf=(id,val)=>{ const e=document.getElementById(id); if(e) e.value=val||''; };
+    hvf('ss-row-id',        data.row_id);
+    hvf('ss-end-date',      data.end_date);
+    hvf('ss-status-val',    data.status);
+    hvf('ss-is-owner',      '1');
+    hvf('ss-contact-name',  data.contact_name);
+    hvf('ss-contact-email', data.contact_email);
+    hvf('ss-subregion',     data.sub_region);
+    hvf('ss-onprem',        data.on_prem_hypervisors);
+    hvf('ss-cloud',         data.public_cloud_providers);
+    hvf('ss-usecase',       data.use_case);
+    hvf('ss-version',       data.morpheus_version);
+    hvf('ss-sockets',       data.approved_sockets);
+    hvf('ss-product-family',data.product_family);
+    hvf('ss-license-type',  data.license_type);
+    hvf('ss-using-hvm',     data.using_hvm);
+    hvf('ss-using-k8s',     data.using_k8s);
+
+    document.getElementById('non-owner-note').style.display='none';
+    const btnCreate = document.getElementById('btn-create-poc');
+    if(btnCreate){ btnCreate.disabled=false; btnCreate.style.opacity=''; btnCreate.style.cursor=''; }
+
+    statusEl.style.background='#E1F5EE'; statusEl.style.color='#085041';
+    statusEl.textContent=`Verified · ${data.status} · ${data.product_family || 'HPE Morpheus'}`;
+    document.getElementById('ss-details').style.display='block';
+    setTimeout(()=>{
+      const btn=document.getElementById('btn-create-poc');
+      if(btn) btn.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },100);
+
+  }catch(e){
+    statusEl.style.background='#FEF2F2'; statusEl.style.color='#991B1B';
+    statusEl.textContent='Could not reach Smartsheet. Please try again.';
+  }finally{
+    if(btn) btn.textContent='🔍 Lookup';
+  }
+}
+
+function toggleModule(el){
+  el.classList.toggle('sel');
+}
+
+function _getModules(){
+  const mods = {};
+  ['m-hvm','m-hks','m-terraform','m-ansible'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) mods[el.dataset.key]=el.classList.contains('sel');
+  });
+  return mods;
+}
+function showFormMsg(msg,ok){
+  const el=document.getElementById('form-msg');
+  el.textContent=msg; el.className='form-msg '+(ok?'ok':'err'); el.style.display='block';
+  if(ok) setTimeout(()=>el.style.display='none',5000);
+}
+async function createPoc(){
+  const hv=(id)=>{ const e=document.getElementById(id); return e?e.value:''; };
+  const pocId = document.getElementById('p-id').value.trim().toUpperCase();
+  if(!pocId){ showFormMsg('Enter a POC Reference ID and run Lookup first.',false); return; }
+  if(!hv('ss-row-id')){ showFormMsg('Please run Lookup first to verify the POC ID with Smartsheet.',false); return; }
+  if(!hv('ss-is-owner')){ showFormMsg('Only the assigned SE on this POC can create a Bible link. Contact your HPE SE.',false); return; }
+  const body={
+    poc_id:               pocId,
+    customer_name:        document.getElementById('d-customer')?.textContent || '',
+    start_date:           (()=>{const t=(document.getElementById('d-start')?.textContent||'').trim();return /^\d{4}-\d{2}-\d{2}$/.test(t)?t:new Date().toISOString().slice(0,10);})(),
+    modules:              _getModules(),
+    smartsheet_row_id:    hv('ss-row-id'),
+    smartsheet_end_date:  hv('ss-end-date') || null,
+    smartsheet_status:    hv('ss-status-val'),
+    product_family:       hv('ss-product-family'),
+    license_type:         hv('ss-license-type') || 'Standard License',
+    contact_name:         hv('ss-contact-name'),
+    contact_email:        hv('ss-contact-email'),
+    sub_region:           hv('ss-subregion'),
+    on_prem_hypervisors:  hv('ss-onprem'),
+    public_cloud_providers: hv('ss-cloud'),
+    use_case:             hv('ss-usecase'),
+    morpheus_version:     hv('ss-version'),
+    approved_sockets:     hv('ss-sockets'),
+    using_hvm:            hv('ss-using-hvm'),
+    using_k8s:            hv('ss-using-k8s'),
+  };
+  try{
+    const res=await fetch(API+'/api/pocs',{method:'POST',headers:hdr(),body:JSON.stringify(body)});
+    const data=await res.json();
+    if(!res.ok){
+      showFormMsg(data.detail||'Error creating POC.',false);
+      document.getElementById('form-msg').scrollIntoView({behavior:'smooth',block:'nearest'});
+      return;
+    }
+    showFormMsg('Created. Customer URL: '+window.location.origin+data.customer_url,true);
+    document.getElementById('p-id').value='';
+    resetAutoFill();
+    await loadPocs();
+  }catch(e){showFormMsg('Connection error.',false);}
+}
+
+// ── FILTER + SUMMARY ────────────────────────────────────────────
+let _dashSearch='';
+let _summaryFilter='';
+
+function setPocFilter2(val){_dashSearch=val.toLowerCase();renderList();}
+function setFilter(el){
+  document.querySelectorAll('.fchip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  activeFilter=el.dataset.filter;
+  _summaryFilter='';
+  renderList();
+}
+function setFilter2(type){
+  _summaryFilter=type;
+  activeFilter='';
+  document.querySelectorAll('.fchip').forEach(c=>c.classList.remove('active'));
+  document.querySelector('.fchip[data-filter=""]')?.classList.add('active');
+  renderList();
+}
+
+function renderSummaryStrip(){
+  const now=new Date();
+  const active=allPocs.filter(p=>!p.force_blocked&&((p.status||'active')==='active'||p.status==='completion_requested')).length;
+  const expiring=allPocs.filter(p=>{
+    const d=Math.round((new Date(p.end_date)-now)/86400000);
+    return d<=7&&d>=0&&!p.force_blocked&&(p.status||'active')==='active';
+  }).length;
+  const blocked=allPocs.filter(p=>p.force_blocked).length;
+  const stale=allPocs.filter(p=>{
+    if(!p.last_synced_at) return true;
+    const d=Math.round((now-new Date(p.last_synced_at))/86400000);
+    return d>7&&(p.status||'active')==='active';
+  }).length;
+  const done=allPocs.filter(p=>(p.status||'active')==='completed').length;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('ss-active',active);set('ss-expiring',expiring);set('ss-blocked',blocked);
+  set('ss-stale',stale);set('ss-done',done);
+}
+
+// ── LOAD ─────────────────────────────────────────────────────────
+async function loadPocs(){
+  try{
+    const res=await fetch(API+'/api/pocs',{headers:hdr()});
+    if(res.status===401){localStorage.clear();window.location.href='/login';return;}
+    if(!res.ok){showToast('Failed to load POCs ('+res.status+')');return;}
+    allPocs=await res.json();
+    renderSummaryStrip();
+    renderList();
+  }catch(e){showToast('Connection error. Please refresh.');}
+}
+
+// ── COMPACT RENDER LIST ──────────────────────────────────────────
+function renderList(){
+  const now=new Date();
+  let filtered=[...allPocs];
+
+  // Summary strip filter override
+  if(_summaryFilter==='active') filtered=filtered.filter(p=>!p.force_blocked&&((p.status||'active')==='active'||p.status==='completion_requested'));
+  else if(_summaryFilter==='expiring') filtered=filtered.filter(p=>{const d=Math.round((new Date(p.end_date)-now)/86400000);return d<=7&&d>=0&&!p.force_blocked;});
+  else if(_summaryFilter==='blocked') filtered=filtered.filter(p=>p.force_blocked);
+  else if(_summaryFilter==='stale') filtered=filtered.filter(p=>{if(!p.last_synced_at)return true;return Math.round((now-new Date(p.last_synced_at))/86400000)>7&&(p.status||'active')==='active';});
+  else if(activeFilter==='blocked') filtered=filtered.filter(p=>p.force_blocked);
+  else if(activeFilter==='active') filtered=filtered.filter(p=>!p.force_blocked&&((p.status||'active')==='active'||p.status==='completion_requested'));
+  else if(activeFilter==='completion_requested') filtered=filtered.filter(p=>p.status==='completion_requested');
+  else if(activeFilter==='completed') filtered=filtered.filter(p=>(p.status||'active')==='completed');
+
+  if(_dashSearch) filtered=filtered.filter(p=>(p.customer_name||'').toLowerCase().includes(_dashSearch)||(p.poc_id||'').toLowerCase().includes(_dashSearch));
+
+  const cnt=document.getElementById('poc-count');
+  if(cnt) cnt.textContent=filtered.length+' POC'+(filtered.length===1?'':'s');
+
+  const list=document.getElementById('poc-list');
+  if(!list) return;
+  if(!filtered.length){list.innerHTML='<div style="padding:40px;text-align:center;font-size:13px;color:var(--pg-text3)">No POCs match this filter.</div>';return;}
+  list.innerHTML=filtered.map(p=>renderPocRow(p)).join('');
+}
+
+// ── COMPACT POC ROW ──────────────────────────────────────────────
+function renderPocRow(p){
+  const now=new Date();
+  const daysLeft=Math.max(0,Math.round((new Date(p.end_date)-now)/86400000));
+  const pct=p.progress_pct||0;
+  const init=(p.customer_name||'??').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const sel=selectedPoc===p.poc_id;
+  const seBlocked=p.force_blocked;
+  const ssBlocked=p.smartsheet_status&&!['Approved','Extended'].includes(p.smartsheet_status);
+  const blocked=seBlocked||ssBlocked;
+  const expiring=daysLeft<=7&&!blocked&&(p.status||'active')==='active';
+
+  // Sync dot: green=synced recently, amber=stale or extended, red=blocked
+  let dotCls='sd-g';
+  if(blocked) dotCls='sd-r';
+  else if(expiring||ssBlocked) dotCls='sd-a';
+  else if(p.last_synced_at&&Math.round((now-new Date(p.last_synced_at))/86400000)>7) dotCls='sd-a';
+
+  const daysClass=daysLeft<=7?'dp-err':daysLeft<=14?'dp-warn':'dp-ok';
+  const barClass=pct<30?'a':'';
+
+  let statusBadge='';
+  if(blocked) statusBadge=`<span class="pr-status ps-blk">Blocked</span>`;
+  else if((p.status||'active')==='completed') statusBadge=`<span class="pr-status ps-done">Done</span>`;
+  else if(p.status==='completion_requested') statusBadge=`<span class="pr-status" style="background:#FEF3C7;color:#92400E">Pending</span>`;
+  else statusBadge=`<span class="pr-status ps-act">Active</span>`;
+
+  const noteCount=(p.customer_note_count||0); // customer notes from API
+  const rowClass=`pr${sel?' sel':''}${blocked?' pr-err':expiring?' pr-warn':''}`;
+  const lastSynced=p.last_synced_at?new Date(p.last_synced_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):'Never';
+
+  let qaStrip='';
+  if(sel){
+    const blockBtn=blocked&&seBlocked
+      ?`<button class="qa-btn qa-block" onclick="event.stopPropagation();showBlockConfirm('${p.poc_id}',true)">Restore access</button>`
+      :!blocked?`<button class="qa-btn qa-block" onclick="event.stopPropagation();showBlockConfirm('${p.poc_id}',false)">Block access</button>`:'';
+    qaStrip=`<div class="qa-strip" onclick="event.stopPropagation()">
+      <button class="qa-btn qa-sync" onclick="quickSync('${p.poc_id}')">⟳ Quick sync</button>
+      <button class="qa-btn" onclick="navigator.clipboard.writeText('${window.location.origin}/poc/${p.access_token}').then(()=>showToast('URL copied'))">Copy URL</button>
+      <button class="qa-btn" onclick="window.open('/poc/${p.access_token}','_blank')" title="Open customer Bible in new tab">View as customer</button>
+      <button class="qa-btn" onclick="copyFull('${p.poc_id}')">Copy status</button>
+      ${blockBtn}
+      <span class="qa-meta">Last synced ${lastSynced}</span>
+    </div>
+    ${_blockConfirm===p.poc_id?renderBlockConfirm(p):''}`;
+  }
+
+  return `<div class="${rowClass}" id="pr-${p.poc_id.replace(/[^a-z0-9]/gi,'_')}" onclick="selectPoc('${p.poc_id}')">
+    <div class="pr-row">
+      <div class="pr-av">${init}</div>
+      <div class="pr-info">
+        <div class="pr-name">${p.customer_name}</div>
+        <div class="pr-meta">${p.poc_id} · ${p.start_date} → ${p.end_date}${p.product_family?' · '+p.product_family:''}</div>
+        ${p.last_accessed_at?`<div style="font-size:10px;color:var(--pg-text3);margin-top:1px">Customer last seen: ${relTime(p.last_accessed_at)}</div>`:''}
+      </div>
+      <div class="pr-right">
+        <div class="sync-dot ${dotCls}" title="${dotCls==='sd-g'?'Synced':dotCls==='sd-a'?'Check needed':'Attention required'}"></div>
+        <div class="pr-bar"><div class="pr-barf ${barClass}" style="width:${pct}%"></div></div>
+        <span class="pr-pct ${barClass}">${pct}%</span>
+        <span class="days-pill ${daysClass}">${blocked?'Blocked':daysLeft<=0?'Expired':daysLeft+'d'}</span>
+        ${statusBadge}
+        ${noteCount?`<span class="note-badge" style="background:#F59E0B;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:3px" title="${noteCount} customer note${noteCount>1?'s':''}">${noteCount} 💬</span>`:''}
+      </div>
+    </div>
+    ${qaStrip}
+  </div>`;
+}
+
+// ── SELECT POC (opens detail panel) ─────────────────────────────
+async function selectPoc(pocId){
+  closeNotesPane();
+  if (_weekNoteFilter) _weekNoteFilter[pocId] = null;  // reset week filter on POC switch
+  if(selectedPoc===pocId){
+    // Second click = close
+    selectedPoc=null;
+    _blockConfirm=null;
+    document.getElementById('detail-pane').style.display='none';
+    renderList();
+    return;
+  }
+  selectedPoc=pocId;
+  _blockConfirm=null;
+  const _dp=document.getElementById('detail-pane');
+  _dp.style.display='block';
+  if(window.innerWidth<=768) requestAnimationFrame(()=>_dp.classList.add('mobile-open'));
+  renderList();
+  renderDetailPanel(pocId);
+  // Load data in background
+  const p=allPocs.find(x=>x.poc_id===pocId);
+  if(p){
+    await Promise.all([loadProgress(pocId),loadAllState(pocId)]);
+    renderDetailPanel(pocId);
+    renderList(); // refresh note count badge
+  }
+}
+
+function closeDetail(){
+  document.title = 'POC Bible Dashboard';
+  selectedPoc=null;
+  _blockConfirm=null;
+  const dp=document.getElementById('detail-pane');
+  if(window.innerWidth<=768){
+    dp.classList.remove('mobile-open');
+    setTimeout(()=>{
+      if(!dp.classList.contains('mobile-open')){
+        dp.style.display='none';
+        dp.innerHTML='<button class="mobile-back-btn" onclick="closeDetail()">← Back to list</button>';
+      }
+    },260);
+  } else {
+    dp.style.display='none';
+    dp.innerHTML='';
+  }
+  renderList();
+}
+
+// ── DETAIL PANEL ─────────────────────────────────────────────────
+function renderDetailPanel(pocId){
+  const p=allPocs.find(x=>x.poc_id===pocId);
+  if(!p) return;
+  const el=document.getElementById('detail-pane');
+  if(!el) return;
+  const daysLeft=Math.max(0,Math.round((new Date(p.end_date)-new Date())/86400000));
+  const mode=_syncMode[pocId]||'both';
+  const prog=_progress[pocId]||[];
+  const lastSynced=p.last_synced_at?new Date(p.last_synced_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'Never';
+  const lastPushed=p.last_pushed_at?new Date(p.last_pushed_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'Never';
+  const nextSync='Auto bi-daily';
+  const ssStatus=p.smartsheet_status||'—';
+  const ssColor=ssStatus==='Approved'?'#01A982':ssStatus==='Extended'?'#D97706':'#EF4444';
+  const dotCls=ssStatus==='Approved'?'':'a';
+
+  // Week summary rows
+  const weekRows=prog.length
+    ? prog.map((w,i)=>{
+        const pct=w.total>0?Math.round(w.done/w.total*100):0;
+        const rowCls=w.signoff?'ws-done':w.done>0?'ws-prog':'';
+        const numCls=w.signoff?'wkn-done':w.done>0?'wkn-prog':'wkn-nil';
+        const numLbl=w.signoff?'&#10003;':(i+1);
+        const bodyOpen=_openWkSec[pocId+'_'+w.week_id]?'open':'';
+        const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id)||{groups:[]};
+        const grpState=(_groupState[pocId]||{})[w.week_id]||[];
+        const pocNotes=_customerNotes[pocId]||[];
+        const grpRows=struct.groups.map((g,gi)=>{
+          const gd=grpState[gi]||0;
+          const gt=g.count;
+          const gPct=gt>0?Math.round(gd/gt*100):0;
+          const gColor=gd===gt&&gt>0?'color:#01A982':gd>0?'color:#D97706':'color:var(--pg-text3)';
+          const secNotes=pocNotes.filter(n=>n.section_id===g.id);
+          const hasNote=secNotes.length>0;
+          const dotHtml=hasNote?`<div class="amber-dot" title="${secNotes.length} customer note${secNotes.length>1?'s':''}"></div>`:'';
+          const rowCls='ws-grp-row'+(hasNote?' has-note':'');
+          const clickAttr=hasNote?`onclick="event.stopPropagation();toggleSectionNotes('${pocId}','${g.id||gi}','${(g.name||'').replace(/'/g,String.fromCharCode(39))}')"`:'' ;
+          return `<div class="${rowCls}" id="grpr-${pocId}-${g.id||gi}" ${clickAttr}>
+            <span class="ws-grp-name">${g.name}</span>
+            ${dotHtml}
+            <span class="ws-grp-ct" style="${gColor}">${gd}/${gt}${gd===gt&&gt>0?' &#10003;':''}</span>
+            <div class="ws-grp-bar"><div class="ws-grp-barf" style="width:${gPct}%"></div></div>
+          </div>`;
+        }).join('');
+        const weekHasNotes = pocNotes.some(n => n.week_id === w.week_id);
+        const weekDot = weekHasNotes ? '<div class="amber-dot week-amber-dot" title="Has customer notes" style="margin-right:2px"></div>' : '';
+        return `<div class="ws-row ${rowCls}" onclick="toggleWkSection('${pocId}','${w.week_id}')" style="cursor:pointer">
+          <div class="ws-hdr">
+            <div class="ws-num ${numCls}">${numLbl}</div>
+            <div class="ws-lbl">${struct.label||('Week '+(i+1))}</div>
+            ${weekDot}
+            ${w.signoff?'<span class="ws-so">Signed off</span>':`<span class="ws-pct ${pct===0?'dim':''}">${pct}%</span>`}
+            <span id="wschev-${pocId}-${w.week_id}" style="font-size:11px;color:var(--pg-text3);margin-left:2px">${bodyOpen?'&#9650;':'&#9660;'}</span>
+          </div>
+          <div class="ws-body ${bodyOpen}" id="wsbody-${pocId}-${w.week_id}">${grpRows}</div>
+        </div>`;
+      }).join('')
+    : WEEK_STRUCTURE.map((_,i)=>`<div class="ws-row">
+        <div class="ws-hdr" style="cursor:default">
+          <div class="ws-num wkn-nil">${i+1}</div>
+          <div class="ws-lbl" style="color:var(--pg-text3)">Loading…</div>
+        </div>
+      </div>`).join('');
+
+  // Sync preview
+  const preview=buildSyncPreview(p,prog,mode,document.getElementById('push-comment-'+pocId)?.value||'');
+
+  document.title = p.customer_name + ' — POC Bible';
+  el.innerHTML=`
+    <button class="mobile-back-btn" onclick="closeDetail()">← Back to list</button>
+    <div class="dp-hdr">
+      <div>
+        <div class="dp-title">${p.customer_name}</div>
+        <div class="dp-sub">${p.poc_id} · ${daysLeft}d left · ${p.progress_pct||0}% complete</div>
+      </div>
+      <button onclick="exportPocPDF('${pocId}')" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--pg-border);border-radius:6px;background:var(--pg-surface);cursor:pointer;color:var(--pg-text2);margin-right:4px" title="Export POC status as PDF">Export PDF</button>
+      <button class="dp-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="dp-body">
+
+      <div class="dp-sec">
+        <div class="dp-sec-t"><div class="dp-dot ${dotCls}"></div>Smartsheet</div>
+        <div class="sync-2x2">
+          <div class="sync-c"><div class="sync-ck">Status</div><div class="sync-cv" style="color:${ssColor}">${ssStatus}</div></div>
+          <div class="sync-c"><div class="sync-ck">Last synced from SS</div><div class="sync-cv">${lastSynced}</div></div>
+          <div class="sync-c"><div class="sync-ck">Last pushed to SS</div><div class="sync-cv">${lastPushed}</div></div>
+          <div class="sync-c"><div class="sync-ck">Next auto-sync</div><div class="sync-cv">${nextSync}</div></div>
+        </div>
+      </div>
+
+      <div class="dp-sec">
+        <div class="dp-sec-t">Push to Smartsheet</div>
+        <div class="push-panel">
+          <div class="push-modes">
+            <div class="push-mode ${mode==='both'?'active':''}" onclick="setSyncMode('${pocId}','both')"><div class="push-mode-l">Progress + note</div><div class="push-mode-s">Both</div></div>
+            <div class="push-mode ${mode==='progress'?'active':''}" onclick="setSyncMode('${pocId}','progress')"><div class="push-mode-l">Progress only</div><div class="push-mode-s">Auto-generated</div></div>
+            <div class="push-mode ${mode==='note'?'active':''}" onclick="setSyncMode('${pocId}','note')"><div class="push-mode-l">Note only</div><div class="push-mode-s">Your comment</div></div>
+          </div>
+          ${mode!=='progress'?`<textarea class="push-ta" id="push-comment-${pocId}" rows="2"
+            placeholder="Add a comment for this push…"
+            oninput="refreshPreview('${pocId}')"></textarea>`:''}
+          <div class="push-preview" id="push-preview-${pocId}">${preview.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>').replace(/(<br>)?(<br>)?(<span class="ph">)/g,'$3')}</div>
+          <button class="btn-push" onclick="pushToSmartsheet('${pocId}')">Push to Smartsheet now</button>
+        </div>
+      </div>
+
+      <div class="dp-sec">
+        <div class="dp-sec-t">Week progress</div>
+        <div class="week-summary">${weekRows}</div>
+      </div>
+
+      <div class="dp-sec" style="margin-top:8px">
+        <div class="dp-sec-t" style="color:#01A982">Notes for SA <span style="font-weight:400;font-size:10px;color:var(--pg-text3)">— pushed to Smartsheet on next push</span></div>
+        <textarea class="note-input" id="sa-notes-${pocId}" rows="3" placeholder="Optional message to SA/approver. Pushed to Smartsheet SE / Partner Notes column on next push." style="width:100%;margin-top:6px;margin-bottom:4px" onblur="saveSaNotes('${pocId}')">${(p.sa_notes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+        <div style="font-size:10px;color:#01A982" id="sa-notes-status-${pocId}"></div>
+      <button onclick="saveSaNotes('${pocId}')" style="font-size:11px;padding:3px 10px;background:#01A982;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;margin-top:4px">Save</button>
+
+      </div>
+
+      ${(()=>{
+        const allSigned = prog.length===5 && prog.every(w=>w.signoff);
+        const st = p.status||'active';
+        if(st==='completed') return `<div style="margin-top:12px;padding:14px 16px;background:rgba(1,169,130,.08);border:1px solid #5dcaa5;border-radius:10px;text-align:center"><div style="font-size:14px;font-weight:600;color:#01A982;margin-bottom:4px">POC Completed</div><div style="font-size:12px;color:var(--pg-text2)">This POC has been marked as completed by admin.</div></div>`;
+        if(st==='completion_requested') return `<div style="margin-top:12px;padding:14px 16px;background:rgba(245,158,11,.07);border:1px solid #fac775;border-radius:10px"><div style="font-size:13px;font-weight:600;color:#ba7517;margin-bottom:4px">Completion request submitted</div><div style="font-size:12px;color:var(--pg-text2);margin-bottom:10px">Waiting for admin to mark this POC as completed.</div><button onclick="cancelCompletion('${pocId}')" style="font-size:11px;padding:4px 12px;border:0.5px solid #fac775;border-radius:6px;background:none;color:#ba7517;cursor:pointer">Cancel request</button></div>`;
+        if(allSigned) return `<div style="margin-top:12px;padding:14px 16px;background:rgba(1,169,130,.05);border:1px solid var(--pg-border);border-radius:10px"><div style="font-size:13px;font-weight:600;color:#01A982;margin-bottom:4px">All weeks signed off</div><div style="font-size:12px;color:var(--pg-text2);margin-bottom:10px">All 5 weeks are complete. Submit for admin to mark this POC as done.</div><button onclick="requestCompletion('${pocId}')" style="font-size:12px;padding:6px 16px;background:#01A982;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600">Submit for completion</button></div>`;
+        return '';
+      })()}
+
+    </div>`;
+  // Only load notes if not already cached — prevents infinite re-render loop
+  if (!_customerNotes[pocId]) { loadCustomerNotesForPoc(pocId); } else { updateAmberDots(pocId); }
+}
+
+// ── SYNC PREVIEW BUILDER ─────────────────────────────────────────
+function buildSyncPreview(p,prog,mode,comment){
+  const now=new Date();
+  const d=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const t=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const email=localStorage.getItem('userEmail')||'se@hpe.com';
+  const pct=p.progress_pct||0;
+  const done=p.progress_done||0;
+  const tot=p.progress_total||0;
+  const daysLeft=Math.max(0,Math.round((new Date(p.end_date)-now)/86400000));
+  const signoff=(prog||[]).filter(w=>w.signoff).length;
+  let lines=[];
+  if(mode!=='note'){
+    lines.push(`[${d} ${t}] ${email}`);
+    lines.push(`${pct}% · ${done}/${tot} · ${signoff}/5 signed off · ${daysLeft}d left`);
+    lines.push('');
+    (prog||[]).forEach(function(w,i){
+      var wLabel=(WEEK_STRUCTURE.find(function(s){return s.id===w.week_id;})||{}).label||w.week_label||('Week '+(i+1));
+      var shortLabel=wLabel.replace(/^Week \d+ [\u2013-] /,'');
+      if(w.signoff){
+        lines.push('\u2713 '+shortLabel+' – 100% · Signed off');
+      } else if(w.done>0){
+        var wp=w.total>0?Math.round(w.done/w.total*100):0;
+        lines.push('\u25b6 '+shortLabel+' – '+wp+'% ('+w.done+'/'+w.total+')');
+      }
+    });
+    const notStarted=(prog||[]).filter(w=>!w.signoff&&w.done===0).length;
+    if(notStarted) lines.push(`(${notStarted} week${notStarted>1?'s':''} not yet started)`);
+  }
+  if(comment&&mode!=='progress'){
+    if(mode==='note'){lines.push(`[${d} ${t}] ${email}`);}
+    lines.push(`Note: ${comment}`);
+  }
+  lines.push('────────────────────────────');
+  return lines.join('\n');
+}
+
+function refreshPreview(pocId){
+  const p=allPocs.find(x=>x.poc_id===pocId);
+  if(!p) return;
+  const prog=_progress[pocId]||[];
+  const mode=_syncMode[pocId]||'both';
+  const comment=document.getElementById('push-comment-'+pocId)?.value||'';
+  const preview=buildSyncPreview(p,prog,mode,comment);
+  const el=document.getElementById('push-preview-'+pocId);
+  if(el) el.textContent=preview;
+}
+
+function setSyncMode(pocId,mode){
+  _syncMode[pocId]=mode;
+  renderDetailPanel(pocId);
+}
+
+async function quickSync(pocId){
+  const p=allPocs.find(x=>x.poc_id===pocId);
+  if(!p){showToast('POC not found');return;}
+  const btn=event?.target;
+  const origText=btn?btn.textContent:'';
+  if(btn){btn.textContent='Syncing…';btn.disabled=true;}
+  try{
+    const res=await fetch(API+'/api/pocs/'+pocId+'/push-status',{method:'POST',headers:hdr(),body:JSON.stringify({mode:'both',comment:''})});
+    if(res.ok){
+      showToast('✓ Synced to Smartsheet');
+      // Bug 4 fix: invalidate caches so fresh data loads
+      delete _groupState[pocId];
+      delete _customerNotes[pocId];
+      await loadPocs();
+      if(selectedPoc===pocId) renderDetailPanel(pocId);
+    }
+    else{const d=await res.json();showToast(d.detail||'Sync failed');}
+  }catch(e){showToast('Connection error');}
+  finally{if(btn){btn.textContent=origText;btn.disabled=false;}}
+}
+
+async function pushToSmartsheet(pocId){
+  const btn=document.querySelector('.btn-push');
+  const origText=btn?btn.textContent:'Push';
+  if(btn){btn.textContent='Pushing…';btn.disabled=true;btn.classList.add('btn-loading');}
+  const mode=_syncMode[pocId]||'both';
+  const comment=document.getElementById('push-comment-'+pocId)?.value||'';
+  showToast('Pushing…');
+  try{
+    const res=await fetch(API+'/api/pocs/'+pocId+'/push-status',{method:'POST',headers:hdr(),body:JSON.stringify({mode,comment})});
+    if(res.ok){showToast('Pushed to Smartsheet');await loadPocs();renderDetailPanel(pocId);}
+    else{const d=await res.json();showToast(d.detail||'Push failed');}
+  }catch(e){showToast('Connection error');}
+  finally{if(btn){btn.textContent=origText;btn.disabled=false;btn.classList.remove('btn-loading');}}
+}
+
+// ── BLOCK CONFIRM ────────────────────────────────────────────────
+function renderBlockConfirm(p){
+  const seBlocked=p.force_blocked;
+  if(seBlocked){
+    return `<div class="block-confirm">
+      <span class="bc-msg">Restore customer access for <strong>${p.customer_name}</strong>?</span>
+      <button class="btn-bcancel" onclick="event.stopPropagation();_blockConfirm=null;renderList()">Cancel</button>
+      <button class="btn-bc" style="background:#01A982" onclick="event.stopPropagation();unblockPoc('${p.poc_id}')">Yes, restore</button>
+    </div>`;
+  }
+  return `<div class="block-confirm">
+    <span class="bc-msg">Block access for <strong>${p.customer_name}</strong>? Customer link stops working immediately.</span>
+    <button class="btn-bcancel" onclick="event.stopPropagation();_blockConfirm=null;renderList()">Cancel</button>
+    <button class="btn-bc" onclick="event.stopPropagation();blockPoc('${p.poc_id}')">Yes, block</button>
+  </div>`;
+}
+
+function showBlockConfirm(pocId, isCurrentlyBlocked){
+  _blockConfirm=pocId;
+  renderList();
+}
+
+
+const _openWkSec={};
+function toggleWkSection(pocId,weekId){
+  const key=pocId+'_'+weekId;
+  _openWkSec[key]=!_openWkSec[key];
+  const bodyEl=document.getElementById('wsbody-'+pocId+'-'+weekId);
+  const chevEl=document.getElementById('wschev-'+pocId+'-'+weekId);
+  if(bodyEl) bodyEl.classList.toggle('open',!!_openWkSec[key]);
+  if(chevEl) chevEl.textContent=_openWkSec[key]?'▲':'▼';
+  // Notes pane filter — expand=show week notes, collapse=close pane
+  if (_openWkSec[key]) {
+    _weekNoteFilter[pocId] = weekId;
+    if (!_customerNotes[pocId]) {
+      loadCustomerNotesForPoc(pocId).then(() => filterNotesPane(pocId, weekId));
+    } else {
+      filterNotesPane(pocId, weekId);
+    }
+  } else if (_weekNoteFilter[pocId] === weekId) {
+    _weekNoteFilter[pocId] = null;
+    const pane = document.getElementById('notes-pane');
+    if (pane) pane.classList.remove('open');
+    const hdl = document.getElementById('notes-pane-handle');
+    if (hdl) hdl.classList.remove('visible');
+  }
+}
+
+async function loadProgress(pocId){
+  try{
+    const res=await fetch(API+'/api/pocs/'+pocId+'/progress',{headers:hdr()});
+    if(res.ok) _progress[pocId]=await res.json();
+  }catch(e){}
+}
+
+// Loads and computes group-level done counts from flat checks array
+async function loadAllState(pocId){
+  if(_groupState[pocId]) return; // already loaded
+  try{
+    const res=await fetch(API+'/api/pocs/'+pocId+'/state',{headers:hdr()});
+    if(!res.ok) return;
+    const allStates=await res.json();
+    _groupState[pocId]={};
+    allStates.forEach(ws=>{
+      const struct=WEEK_STRUCTURE.find(s=>s.id===ws.week_id);
+      if(!struct) return;
+      const chks=ws.checks||{};
+      if(typeof chks==='object'&&!Array.isArray(chks)){
+        // ID-based dict — use item IDs per group
+        _groupState[pocId][ws.week_id]=struct.groups.map(g=>{
+          return (g.items||[]).filter(id=>chks[id]===true).length;
+        });
+      } else {
+        // Legacy positional array fallback
+        let offset=0;
+        _groupState[pocId][ws.week_id]=struct.groups.map(g=>{
+          const slice=Array.isArray(chks)?chks.slice(offset,offset+g.count):[];
+          offset+=g.count;
+          return slice.filter(Boolean).length;
+        });
+      }
+    });
+  }catch(e){}
+}
+
+// ── TOGGLE WEEK ───────────────────────────────────────────────────
+// State is pre-loaded when POC opens -- just toggle visibility here
+async function requestCompletion(pocId){
+  if(!confirm('Submit this POC for completion? Admin will review and mark it as done.')) return;
+  const r=await fetch(API+'/api/pocs/'+pocId+'/request-completion',{method:'PUT',headers:hdr()});
+  if(r.ok){showToast('Completion request submitted — awaiting admin approval');await refreshPoc(pocId);}
+  else showToast('Error submitting completion request');
+}
+
+async function cancelCompletion(pocId){
+  const r=await fetch(API+'/api/pocs/'+pocId+'/cancel-completion',{method:'PUT',headers:hdr()});
+  if(r.ok){showToast('Completion request cancelled');await refreshPoc(pocId);}
+  else showToast('Error cancelling request');
+}
+
+async function refreshPoc(pocId){
+  try{const res=await fetch(API+'/api/pocs',{headers:hdr()});if(res.ok){allPocs=await res.json();renderList();if(selectedPoc===pocId){await Promise.all([loadProgress(pocId),loadAllState(pocId)]);renderDetailPanel(pocId);}}}catch(e){}
+}
+
+
+let _weekNoteFilter = {};  // pocId → weekId currently filtered (null = all/closed)
+
+function showAllNotes(pocId) {
+  _weekNoteFilter[pocId] = null;
+  const pane = document.getElementById('notes-pane');
+  const scroll = document.getElementById('np-scroll');
+  const titleEl = document.getElementById('np-head-title');
+  const notes = _customerNotes[pocId];
+  if (!notes || !notes.length) return;
+  if (titleEl) titleEl.textContent = 'Customer notes — All weeks';
+  if (pane) pane.classList.add('open');
+  const hdl = document.getElementById('notes-pane-handle');
+  if (hdl) hdl.classList.add('visible');
+  if (scroll) renderTimelineNotes(notes, null, scroll, pocId);
+}
+
+
+function filterNotesPane(pocId, weekId) {
+  const notes = _customerNotes[pocId];
+  if (!notes) return;
+  const pane = document.getElementById('notes-pane');
+  const scroll = document.getElementById('np-scroll');
+  const titleEl = document.getElementById('np-head-title');
+  if (!scroll) return;
+  // Always single-week filter — never show multiple weeks simultaneously
+  const filtered = weekId ? notes.filter(n => n.week_id === weekId) : notes;
+  if (titleEl) {
+    const ws = weekId ? WEEK_STRUCTURE.find(w => w.id === weekId) : null;
+    titleEl.textContent = ws ? ws.label + ' notes' : 'Customer notes';
+  }
+  // Open pane and render filtered notes
+  _activeNoteSection = null;
+  if (pane) pane.classList.add('open');
+  const hdl = document.getElementById('notes-pane-handle');
+  if (hdl) hdl.classList.add('visible');
+  if (filtered.length) {
+    renderTimelineNotes(filtered, null, scroll, pocId);
+  } else {
+    scroll.innerHTML = '<div class="np-empty">No customer notes for this week yet.</div>';
+  }
+}
+
+// ── COPY STATUS ───────────────────────────────────────────────────
+async function copyFull(pocId){
+  const poc=allPocs.find(p=>p.poc_id===pocId); if(!poc) return;
+  // Refresh progress and ensure state is loaded
+  await Promise.all([loadProgress(pocId), loadAllState(pocId)]);
+  const prog = _progress[pocId]||[];
+  const text = buildFullText(poc, prog);
+  const btnId = 'bcf_'+pocId;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.getElementById(btnId);
+    if(btn){btn.textContent='✓ Copied!';btn.classList.add('copied');}
+    showToast('Full status copied — paste into Smartsheet Weekly Status Update');
+    setTimeout(()=>{if(btn){btn.textContent='Copy full status';btn.classList.remove('copied');}},2500);
+  });
+}
+
+function buildFullText(poc, prog){
+  const today=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const pct=poc.progress_pct||0, done=poc.progress_done||0, tot=poc.progress_total||0;
+  const so=(prog||[]).filter(w=>w.signoff).length;
+  const lines=[
+    `POC Status Update — ${poc.customer_name} (${poc.poc_id})`,
+    `Updated: ${today}  |  SE: ${localStorage.getItem('userName')||''}`,
+    '',
+    `Overall: ${done}/${tot} items complete (${pct}%) | Weeks signed off: ${so}/5`,
+    '',
+  ];
+  (prog||[]).forEach(w=>{
+    if(w.signoff||w.pct===100){
+      lines.push(`${w.label}: ${w.done}/${w.total} (${w.pct}%)${w.signoff?' ✓ SIGNED OFF':''}`);
+    } else if(w.done>0){
+      lines.push(`${w.label}: ${w.done}/${w.total} (${w.pct}%)`);
+      const gs=(_groupState[poc.poc_id]||{})[w.week_id];
+      const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id);
+      if(gs&&struct){
+        struct.groups.forEach((g,gi)=>{
+          const gd=gs[gi]||0;
+          lines.push(`  ${gd>0?'✓':'○'} ${g.name}: ${gd}/${g.count}`);
+        });
+      }
+    } else {
+      lines.push(`${w.label}: Not started`);
+    }
+  });
+  return lines.join('\n');
+}
+
+// ── BLOCK / UNBLOCK ───────────────────────────────────────────────
+async function blockPoc(id){
+  const res=await fetch(API+'/api/pocs/'+id+'/block',{method:'PUT',headers:hdr()});
+  _blockConfirm=null;
+  if(!res.ok){const d=await res.json().catch(()=>({}));showToast(d.detail||'Failed to block POC');renderList();return;}
+  showToast('Customer access blocked');
+  await loadPocs();
+  if(selectedPoc===id) renderDetailPanel(id);
+}
+async function unblockPoc(id){
+  const res=await fetch(API+'/api/pocs/'+id+'/unblock',{method:'PUT',headers:hdr()});
+  _blockConfirm=null;
+  if(!res.ok){const d=await res.json().catch(()=>({}));showToast(d.detail||'Failed to restore access');renderList();return;}
+  showToast('Customer access restored');
+  await loadPocs();
+  if(selectedPoc===id) renderDetailPanel(id);
+}
+
+function logout(){localStorage.clear();window.location.href='/login';}
+
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);const b=document.getElementById('theme-btn');if(b)b.textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('pocbible_theme',t);}catch(e){}}
+function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');}
+(function(){try{const t=localStorage.getItem('pocbible_theme');if(t)applyTheme(t);}catch(e){}})();
+// ── SE NOTES ─────────────────────────────────────────────────────
+
+
+async function saveSaNotes(pocId){
+  const el=document.getElementById('sa-notes-rn-'+pocId)||document.getElementById('sa-notes-'+pocId);
+  const statusEl=document.getElementById('sa-notes-status-'+pocId);
+  if(!el) return;
+  const text=(el.value||'').trim();
+  try{
+    const res=await fetch(API+'/api/pocs/'+pocId+'/sa-notes',{method:'PUT',headers:hdr(),body:JSON.stringify({sa_notes:text})});
+    if(!res.ok){if(statusEl) statusEl.textContent='Failed to save';return;}
+    const poc=allPocs.find(p=>p.poc_id===pocId);
+    if(poc) poc.sa_notes=text;
+    if(statusEl){statusEl.textContent='Saved';setTimeout(()=>{if(statusEl) statusEl.textContent='';},2000);}
+  }catch(e){if(statusEl) statusEl.textContent='Connection error';}
+}
+const _customerNotes = {};
+let _activeNoteSection = null;
+
+function updateAmberDots(pocId) {
+  const notes = _customerNotes[pocId] || [];
+  WEEK_STRUCTURE.forEach(w => {
+    w.groups.forEach(g => {
+      const rowEl = document.getElementById('grpr-' + pocId + '-' + (g.id||''));
+      if (!rowEl) return;
+      const secNotes = notes.filter(n => n.section_id === g.id);
+      if (secNotes.length > 0 && !rowEl.querySelector('.amber-dot')) {
+        rowEl.classList.add('has-note');
+        const gid = g.id; const gname = g.name;
+        rowEl.onclick = function(){ toggleSectionNotes(pocId, gid, gname); };
+        const ct = rowEl.querySelector('.ws-grp-ct');
+        if (ct) {
+          const dot = document.createElement('div');
+          dot.className = 'amber-dot';
+          dot.title = secNotes.length + ' customer note' + (secNotes.length > 1 ? 's' : '');
+          rowEl.insertBefore(dot, ct);
+        }
+      }
+    });
+  });
+}
+
+function renderTimelineNotes(notes, activeSec, scrollEl, pocId) {
+  if (!notes || !notes.length) {
+    scrollEl.innerHTML = '<div class="np-empty">No customer notes yet for this POC.</div>';
+    return;
+  }
+  const wkOrder = WEEK_STRUCTURE.map(w => w.week_id || w.id);
+  const byWeek = {};
+  notes.forEach(n => {
+    const wid = n.week_id || 'week1';
+    if (!byWeek[wid]) byWeek[wid] = {};
+    const sid = n.section_id || '__sec';
+    if (!byWeek[wid][sid]) byWeek[wid][sid] = {title: n.section_title || (sid === '__sec' ? '' : sid), notes: []};
+    byWeek[wid][sid].notes.push(n);
+  });
+  let h = '';
+  wkOrder.forEach((wid, wi) => {
+    const wSecs = byWeek[wid];
+    if (!wSecs) return;
+    h += `<div class="ntl-wk"><div class="ntl-wk-hdr"><div class="ntl-wk-num">W${wi+1}</div><span class="ntl-wk-lbl">Week ${wi+1}</span></div>`;
+
+      // Sort sections by curriculum position in WEEK_STRUCTURE
+      const _wkStruct = WEEK_STRUCTURE[wi] || WEEK_STRUCTURE.find(w => (w.id||w.week_id) === wid);
+      const _grpOrder = _wkStruct ? (_wkStruct.groups||[]).map(g => g.id) : [];
+      const sortedSecs = Object.entries(wSecs).sort(([a],[b]) => {
+        const ai = _grpOrder.indexOf(a), bi = _grpOrder.indexOf(b);
+        if (ai === -1 && bi === -1) return 0;
+        if (ai === -1) return 1; if (bi === -1) return -1;
+        return ai - bi;
+      });
+    sortedSecs.forEach(([sid, sec]) => {
+      h += `<div class="ntl-sec" id="ntl-sec-${sid}"><div class="ntl-sec-hdr"><div class="ntl-sec-dot"></div><span class="ntl-sec-name">${sec.title}</span></div>`;
+      const byItem = {};
+      sec.notes.forEach(n => {
+        const ikey = n.item_id || '__';
+        if (!byItem[ikey]) byItem[ikey] = {title: n.item_title || '', notes: []};
+        byItem[ikey].notes.push(n);
+      });
+      Object.entries(byItem).forEach(([iid, item]) => {
+        if (item.title) h += `<div class="ntl-item-name">${item.title}</div>`;
+        item.notes.forEach(n => {
+          const dt = relTime(n.created_at);
+          const safe = (n.note||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          const ack = n.acknowledged_at;
+          const replyHtml = n.se_reply
+            ? `<div class="ntl-reply"><div class="ntl-reply-meta">↳ HPE SE · ${n.se_reply_at?relTime(n.se_reply_at):''}</div><div class="ntl-reply-txt">${(n.se_reply).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>`
+            : `<div id="ntl-reply-wrap-${n.id}"><button class="ntl-reply-link" onclick="toggleReplyInput(${n.id})">↩ Reply</button></div>`;
+          h += `<div class="ntl-card" style="position:relative;border-left:2px solid ${ack?'#01A982':'#F59E0B'}">
+            <div class="ntl-time" style="display:flex;align-items:center;gap:5px">${dt}${ack?'<span style="font-size:9px;color:#01A982;font-weight:700">✓ Seen</span>':''}</div>
+            <div class="ntl-text">${safe}</div>
+            <div style="display:flex;gap:4px;position:absolute;top:5px;right:4px">
+              ${!ack?`<button onclick="acknowledgeNote('${pocId}',${n.id},this)" style="background:none;border:0.5px solid #01A982;color:#01A982;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px" title="Mark as seen">✓</button>`:''}
+              <button onclick="deleteCustomerNote('${pocId}',${n.id})" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--pg-text3);padding:1px 4px;border-radius:3px;opacity:0.6" title="Delete note">✕</button>
+            </div>
+          </div>${replyHtml}`;
+        });
+      });
+      h += '</div>';
+    });
+    h += '</div>';
+  });
+  scrollEl.innerHTML = h || '<div class="np-empty">No notes yet.</div>';
+  if (activeSec) {
+    const el = scrollEl.querySelector('#ntl-sec-' + activeSec);
+    if (el) setTimeout(() => el.scrollIntoView({behavior:'smooth', block:'nearest'}), 80);
+  }
+}
+
+function toggleSectionNotes(pocId, secId, secName) {
+  const panel = document.getElementById('notes-pane');
+  const scroll = document.getElementById('np-scroll');
+  const titleEl = document.getElementById('np-head-title');
+  // Clear all row highlights
+  document.querySelectorAll('.ws-grp-row').forEach(r => r.classList.remove('grp-note-sel'));
+  // Toggle: same section again = close
+  if (_activeNoteSection === secId && panel && panel.classList.contains('open')) {
+    _activeNoteSection = null;
+    panel.classList.remove('open');
+    return;
+  }
+  _activeNoteSection = secId;
+  const rowEl = document.getElementById('grpr-' + pocId + '-' + secId);
+  if (rowEl) rowEl.classList.add('grp-note-sel');
+  if (titleEl) titleEl.textContent = 'Customer notes';
+  if (scroll) renderTimelineNotes(_customerNotes[pocId] || [], secId, scroll, pocId);
+  if (panel) {
+    panel.classList.add('open');
+    const h=document.getElementById('notes-pane-handle');
+    if(h) h.classList.add('visible');
+  }
+}
+
+function exportPocPDF(pocId){
+  const p=allPocs.find(x=>x.poc_id===pocId);
+  if(!p) return;
+  const prog=_progress[pocId]||[];
+  const custNotes=(_customerNotes[pocId]||[]);
+  const wkRows=prog.map((wk,i)=>`<tr><td>Week ${i+1}</td><td>${wk.label||''}</td><td>${wk.pct||0}%</td><td>${wk.done||0}/${wk.total||0}</td><td>${wk.signoff?'✓ Signed off':'—'}</td></tr>`).join('');
+  const cnHtml=custNotes.map(n=>`<li><b>${n.week_id||''} / ${n.section_title||''}</b> — ${relTime(n.created_at)}: ${n.note}</li>`).join('');
+  const html=`<!DOCTYPE html><html><head><title>POC Status — ${p.customer_name}</title>
+  <style>body{font-family:sans-serif;padding:32px;color:#111}h1{font-size:20px;color:#01A982}h2{font-size:14px;color:#374151;margin:20px 0 6px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f3f4f6;padding:6px 8px;text-align:left}td{padding:6px 8px;border-bottom:1px solid #e5e7eb}li{margin:4px 0;font-size:12px}.meta{font-size:12px;color:#6b7280;margin-bottom:20px}</style></head>
+  <body><h1>HPE Morpheus POC Status Report</h1>
+  <div class="meta"><b>${p.customer_name}</b> · ${p.poc_id} · SE: ${p.se_name||p.se_email} · Generated: ${new Date().toLocaleDateString()}</div>
+  <h2>Week Progress</h2><table><tr><th>#</th><th>Week</th><th>Progress</th><th>Items</th><th>Sign-Off</th></tr>${wkRows}</table>
+  ${cnHtml?'<h2>Customer Notes</h2><ul>'+cnHtml+'</ul>':''}
+  </body></html>`;
+  const blob=new Blob([html],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
+  if(w) setTimeout(()=>{w.print();URL.revokeObjectURL(url);},600);
+  else URL.revokeObjectURL(url);
+}
+
+function toggleReplyInput(noteId) {
+  const wrap = document.getElementById('ntl-reply-wrap-'+noteId);
+  if (!wrap) return;
+  // Find pocId from the notes pane context
+  const pocId = selectedPoc;
+  wrap.innerHTML = `<div class="ntl-reply-input"><textarea class="ntl-reply-ta" id="rta-${noteId}" rows="2" placeholder="Write your reply…" autofocus></textarea><button class="ntl-reply-btn" id="rbtn-${noteId}" onclick="submitSeReply('${pocId}',${noteId},'rta-${noteId}','rbtn-${noteId}')">Send</button><button onclick="toggleReplyInput(${noteId})" style="background:none;border:none;color:var(--pg-text3);cursor:pointer;font-size:11px;padding:5px 6px">✕</button></div>`;
+  setTimeout(() => { const ta = document.getElementById('rta-'+noteId); if(ta) ta.focus(); }, 50);
+}
+
+async function submitSeReply(pocId, noteId, taId, btnId) {
+  const ta = document.getElementById(taId);
+  const btn = document.getElementById(btnId);
+  if (!ta || !ta.value.trim()) { if(ta) ta.focus(); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const r = await fetch(API+'/api/pocs/'+pocId+'/customer-notes/'+noteId+'/reply',
+      {method:'PATCH', headers:hdr(), body:JSON.stringify({reply: ta.value.trim()})});
+    if (r.ok) { delete _customerNotes[pocId]; await loadCustomerNotesForPoc(pocId); }
+  } catch(e) {}
+  if (btn) { btn.disabled = false; btn.textContent = 'Reply'; }
+}
+
+async function acknowledgeNote(pocId, noteId, btn) {
+  try {
+    const r = await fetch(API + '/api/pocs/' + pocId + '/customer-notes/' + noteId + '/acknowledge', {method:'PATCH', headers:hdr()});
+    if (r.ok) {
+      delete _customerNotes[pocId];
+      await loadCustomerNotesForPoc(pocId);
+      if (document.getElementById('notes-pane').classList.contains('open')) {
+        renderTimelineNotes(_customerNotes[pocId] || [], _activeNoteSection, document.getElementById('np-scroll'), pocId);
+      }
+      showToast('Note marked as seen');
+    }
+  } catch(e) { showToast('Failed to acknowledge note'); }
+}
+
+async function deleteCustomerNote(pocId, noteId) {
+  if (!confirm('Delete this customer note? This cannot be undone.')) return;
+  try {
+    const r = await fetch(API + '/api/pocs/' + pocId + '/customer-notes/' + noteId, {method:'DELETE', headers:hdr()});
+    if (r.ok) {
+      delete _customerNotes[pocId];
+      await loadCustomerNotesForPoc(pocId);
+      showToast('Note deleted');
+    }
+  } catch(e) { showToast('Failed to delete note'); }
+}
+
+function filterNotes(q) {
+  const el = document.getElementById('np-scroll');
+  if (!el) return;
+  const allNotes = _customerNotes[selectedPoc] || [];
+  const filtered = q.trim() ? allNotes.filter(n => n.note.toLowerCase().includes(q.toLowerCase()) || (n.section_title||'').toLowerCase().includes(q.toLowerCase())) : allNotes;
+  renderTimelineNotes(filtered, _activeNoteSection, el, selectedPoc);
+}
+
+function closeNotesPane() {
+  _activeNoteSection = null;
+  document.querySelectorAll('.ws-grp-row').forEach(r => r.classList.remove('grp-note-sel'));
+  const panel = document.getElementById('notes-pane');
+  if (panel) panel.classList.remove('open');
+  const h=document.getElementById('notes-pane-handle');
+  if(h) h.classList.remove('visible');
+  const srch=document.getElementById('np-search');if(srch)srch.value='';
+}
+
+
+async function loadCustomerNotesForPoc(pocId) {
+  try {
+    const res = await fetch(API+'/api/pocs/'+pocId+'/customer-notes', {headers: hdr()});
+    if (!res.ok) return;
+    const notes = await res.json();
+    // Store globally for amber dot rendering
+    _customerNotes[pocId] = notes;
+    updateAmberDots(pocId);
+    if (!notes.length) { return; }
+
+  } catch(e) {
+    console.error('Failed to load customer notes for', pocId, e);
+  }
+}
+
+
+// ── RESIZABLE PANE ───────────────────────────────────────────────
+function initResizable(){
+  const handle=document.getElementById('pane-handle');
+  const listPane=document.getElementById('list-pane');
+  const container=listPane?.parentElement;
+  if(!handle||!listPane||!container) return;
+  if(window.innerWidth<=768) return;
+  const savedRatio=parseFloat(localStorage.getItem('dashboard_split_ratio')||'0.35');
+  listPane.style.flex='0 0 '+Math.round(savedRatio*100)+'%';
+  listPane.style.width='';
+  let isDragging=false,startX=0,startRatio=0;
+  function startDrag(clientX){isDragging=true;startX=clientX;startRatio=listPane.offsetWidth/container.offsetWidth;handle.classList.add('dragging');document.body.style.cursor='col-resize';document.body.style.userSelect='none';}
+  function doDrag(clientX){if(!isDragging) return;const delta=clientX-startX;const r=Math.min(0.70,Math.max(0.20,startRatio+delta/container.offsetWidth));listPane.style.flex='0 0 '+Math.round(r*100)+'%';listPane.style.width='';}
+  function endDrag(){if(!isDragging) return;isDragging=false;handle.classList.remove('dragging');document.body.style.cursor='';document.body.style.userSelect='';localStorage.setItem('dashboard_split_ratio',(listPane.offsetWidth/container.offsetWidth).toFixed(3));}
+  handle.addEventListener('mousedown',e=>{startDrag(e.clientX);e.preventDefault();});
+  document.addEventListener('mousemove',e=>{doDrag(e.clientX);});
+  document.addEventListener('mouseup',endDrag);
+  handle.addEventListener('touchstart',e=>{startDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
+  document.addEventListener('touchmove',e=>{if(isDragging){doDrag(e.touches[0].clientX);e.preventDefault();}},{passive:false});
+  document.addEventListener('touchend',endDrag);
+  window.addEventListener('resize',()=>{if(window.innerWidth<=768) return;const r=parseFloat(localStorage.getItem('dashboard_split_ratio')||'0.35');listPane.style.flex='0 0 '+Math.round(r*100)+'%';listPane.style.width='';});
+}
+</script>
+</body>
+</html>

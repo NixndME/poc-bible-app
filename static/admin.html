@@ -1,0 +1,1864 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POC Bible Admin</title>
+<style>
+
+[data-theme="light"]{
+  --pg-bg:#F4F6F9;--pg-surface:#fff;--pg-surface2:#F0F4F8;
+  --pg-border:#DDE3EC;--pg-border2:#C5CDD9;
+  --pg-text:#111827;--pg-text2:#6B7280;--pg-text3:#9CA3AF;
+  --pg-hpe-bg:#E1F5EE;--pg-hpe-border:#5DCAA5;--pg-hpe-text:#085041;
+  --pg-danger-bg:#FEF2F2;--pg-danger-border:#FECACA;--pg-danger-text:#991B1B;
+}
+[data-theme="dark"]{
+  --pg-bg:#111113;--pg-surface:#1A1A1C;--pg-surface2:#222225;
+  --pg-border:#2E2E33;--pg-border2:#3A3A40;
+  --pg-text:#EDEDED;--pg-text2:#9B9BA4;--pg-text3:#5A5A63;
+  --pg-hpe-bg:rgba(1,169,130,.12);--pg-hpe-border:rgba(1,169,130,.3);--pg-hpe-text:#6EE7B7;
+  --pg-danger-bg:rgba(239,68,68,.08);--pg-danger-border:rgba(239,68,68,.25);--pg-danger-text:#FCA5A5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--pg-bg);color:var(--pg-text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--pg-surface);border-bottom:0.5px solid var(--pg-border);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.tb-left{display:flex;align-items:center;gap:10px}
+.hpe-badge{background:#01A982;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;letter-spacing:.04em}
+.tb-sep{width:0.5px;height:16px;background:#DDE3EC}
+.tb-title{font-size:14px;font-weight:600}
+.admin-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+.badge-master{background:#F3E8FF;color:#5B21B6}
+.badge-admin{background:#FFF3E0;color:#7C3A00}
+.tb-right{display:flex;align-items:center;gap:8px}
+.tb-user{font-size:12px;color:#6B7280}
+.btn-so{font-size:12px;color:#6B7280;cursor:pointer;padding:4px 10px;border-radius:6px;border:0.5px solid #DDE3EC;background:transparent}
+.btn-so:hover{color:#DC2626;border-color:#FECACA}
+/* TOP TAB NAV -- always visible */
+.top-tabs{background:var(--pg-surface);border-bottom:0.5px solid var(--pg-border);padding:0 20px;display:flex;align-items:center;flex-shrink:0}
+.top-tab{padding:13px 20px;font-size:13px;font-weight:600;color:var(--pg-text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none}
+.top-tab:hover{color:var(--pg-text)}
+.top-tab.active{color:#01A982;border-bottom-color:#01A982}
+.content-area{flex:1;overflow:hidden;display:flex}
+/* USERS VIEW */
+.users-layout{display:flex;flex:1;overflow:hidden}
+.users-sidebar{width:340px;flex-shrink:0;background:var(--pg-surface);border-right:0.5px solid var(--pg-border);display:flex;flex-direction:column;overflow:hidden}
+.users-main{flex:1;overflow-y:auto;background:var(--pg-bg);padding:20px}
+.sb-head{padding:14px 14px 10px;border-bottom:0.5px solid var(--pg-border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.sb-label{font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em}
+.btn-new-u{padding:5px 11px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-new-u:hover{background:#0F6E56}
+.create-form{border-bottom:0.5px solid var(--pg-border);background:var(--pg-surface2);flex-shrink:0;overflow:hidden;max-height:0;transition:max-height .25s}
+.create-form.open{max-height:500px}
+.cfi{padding:12px 14px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.form-row.full{grid-template-columns:1fr}
+.fl{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.fi{width:100%;padding:7px 9px;border:0.5px solid #DDE3EC;border-radius:7px;font-size:12px;color:#111827;background:#fff;outline:none;font-family:inherit}
+.fi:focus{border-color:#01A982}
+.btn-create-u{width:100%;padding:8px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px}
+.btn-create-u:hover{background:#0F6E56}
+.form-msg{font-size:11px;padding:7px 10px;border-radius:6px;margin-bottom:8px;display:none}
+.form-msg.ok{background:#E1F5EE;color:#085041;border:0.5px solid #5DCAA5}
+.form-msg.err{background:#FEF2F2;color:#991B1B;border:0.5px solid #FECACA}
+.filter-bar{padding:8px 14px;border-bottom:0.5px solid var(--pg-border);flex-shrink:0}
+.fsel{width:100%;padding:5px 8px;border:0.5px solid #DDE3EC;border-radius:7px;font-size:11px;color:#374151;background:#fff;outline:none;font-family:inherit;cursor:pointer}
+.user-list{flex:1;overflow-y:auto;padding:8px}
+.user-card{border:0.5px solid var(--pg-border);border-radius:10px;margin-bottom:6px;background:var(--pg-surface);overflow:hidden;cursor:pointer;transition:border-color .15s}
+.user-card:hover{border-color:#86CEBA}
+.user-card.selected{border-color:#01A982;background:#FAFFFE}
+.uc-top{padding:10px 12px;display:flex;align-items:center;gap:9px}
+.uc-av{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.av-master{background:#F3E8FF;color:#5B21B6}
+.av-admin{background:#FFF3E0;color:#7C3A00}
+.av-se{background:#E1F5EE;color:#085041}
+.av-partner{background:#EFF6FF;color:#1E40AF}
+.uc-info{flex:1;min-width:0}
+.uc-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uc-email{font-size:10px;color:#6B7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uc-right{text-align:right;flex-shrink:0}
+.rbadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;display:inline-block}
+.rb-master{background:#F3E8FF;color:#5B21B6}
+.rb-admin{background:#FFF3E0;color:#7C3A00}
+.rb-se{background:#E1F5EE;color:#085041}
+.rb-partner{background:#EFF6FF;color:#1E40AF}
+.uc-status{font-size:10px;color:#9CA3AF;margin-top:2px}
+.uc-actions{padding:6px 12px 8px;border-top:0.5px solid #F0F4F8;display:flex;gap:5px;flex-wrap:wrap}
+.abn{font-size:10px;font-weight:600;padding:3px 9px;border-radius:5px;cursor:pointer;border:0.5px solid;background:transparent}
+.abn-reset{border-color:#B5D4F4;color:#185FA5}.abn-reset:hover{background:#E6F1FB}
+.abn-revoke{border-color:#FECACA;color:#991B1B}.abn-revoke:hover{background:#FEF2F2}
+.abn-reactivate{border-color:#5DCAA5;color:#085041}.abn-reactivate:hover{background:#E1F5EE}
+.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:400px;gap:10px;color:#9CA3AF}
+.ph-ic{font-size:44px;opacity:.15}
+
+/* Shared compact row + split pane -- same as SE dashboard */
+.summary-strip{background:var(--pg-surface);border-bottom:0.5px solid var(--pg-border);display:grid;grid-template-columns:repeat(5,1fr)}
+.ss-cell{padding:8px 14px;border-right:0.5px solid var(--pg-border);cursor:pointer}
+.ss-cell:last-child{border-right:none}
+.ss-cell:hover{background:var(--pg-surface2)}
+.ss-k{font-size:10px;color:var(--pg-text3);margin-bottom:1px}
+.ss-v{font-size:18px;font-weight:600;color:var(--pg-text)}
+.ss-v.g{color:#01A982}.ss-v.a{color:#D97706}.ss-v.r{color:#EF4444}
+.list-pane{flex:0 0 35%;min-width:260px;max-width:70%;padding:12px 14px;overflow-y:auto}
+.detail-pane{flex:1;min-width:0;background:var(--pg-surface);border-left:0.5px solid var(--pg-border);overflow-y:auto;transition:transform .25s ease}
+.pane-handle{width:5px;flex-shrink:0;background:transparent;cursor:col-resize;transition:background .15s;position:relative;z-index:10}
+.pane-handle:hover,.pane-handle.dragging{background:var(--pg-hpe-border)}
+.pane-handle::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:40px;background:var(--pg-border);border-radius:1px}
+@media(max-width:1024px) and (min-width:769px){.list-pane{flex:0 0 40%;min-width:240px}}
+@media(max-width:768px){
+  .list-pane{flex:0 0 100% !important;max-width:100% !important;min-width:0 !important}
+  .detail-pane{position:fixed;inset:0;z-index:200;width:100% !important;min-width:0 !important;transform:translateX(100%);display:block !important}
+  .detail-pane.mobile-open{transform:translateX(0)}
+  .pane-handle{display:none !important}
+  .mobile-back-btn{display:flex !important}
+}
+.pr{background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:10px;margin-bottom:5px;overflow:hidden;cursor:pointer;transition:border-color .12s}
+.pr:hover{border-color:#86CEBA}
+.pr.sel{border-color:#01A982;border-width:1.5px}
+.pr.pr-warn{border-left:3px solid #F59E0B;border-radius:0 10px 10px 0}
+.pr.pr-err{border-left:3px solid #EF4444;border-radius:0 10px 10px 0}
+.pr-row{padding:9px 12px;display:flex;align-items:center;gap:10px}
+.pr-av{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.pr-info{flex:1;min-width:0}
+.pr-name{font-size:12px;font-weight:600;color:var(--pg-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-meta{font-size:10px;color:var(--pg-text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-right{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sd-g{background:#01A982}.sd-a{background:#F59E0B}.sd-r{background:#EF4444}
+.pr-bar{width:50px;height:3px;background:var(--pg-border2);border-radius:2px;overflow:hidden}
+.pr-barf{height:100%;background:#01A982;border-radius:2px}
+.pr-pct{font-size:11px;font-weight:600;color:#01A982;min-width:30px;text-align:right}
+.days-pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.dp-ok{background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.dp-warn{background:#FFF8E1;color:#7C4A00}
+.dp-err{background:var(--pg-danger-bg);color:var(--pg-danger-text)}
+.pr-status{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px}
+.ps-act{background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.ps-blk{background:var(--pg-danger-bg);color:var(--pg-danger-text)}
+.ps-done{background:var(--pg-surface2);color:var(--pg-text3)}
+.qa-strip{padding:6px 12px 8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-top:0.5px solid var(--pg-border)}
+.qa-btn{font-size:10px;font-weight:600;padding:3px 9px;border-radius:5px;border:0.5px solid var(--pg-border);color:var(--pg-text2);background:transparent;cursor:pointer;white-space:nowrap}
+.qa-btn:hover{border-color:#01A982;color:#01A982}
+.qa-block{border-color:var(--pg-danger-border)!important;color:var(--pg-danger-text)!important}
+.qa-restore{border-color:var(--pg-hpe-border)!important;color:var(--pg-hpe-text)!important}
+/* Admin detail pane */
+.adp-hdr{padding:13px 16px;border-bottom:0.5px solid var(--pg-border);position:sticky;top:0;background:var(--pg-surface);z-index:2}
+.adp-title{font-size:14px;font-weight:600;color:var(--pg-text)}
+.adp-sub{font-size:11px;color:var(--pg-text2);margin-top:2px}
+.adp-body{padding:14px 16px}
+.adp-sec{margin-bottom:14px}
+.adp-sec-t{font-size:10px;font-weight:700;color:var(--pg-text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.adp-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.adp-cell{background:var(--pg-surface2);border-radius:7px;padding:8px 10px}
+.adp-ck{font-size:10px;color:var(--pg-text3);margin-bottom:1px}
+.adp-cv{font-size:12px;font-weight:600;color:var(--pg-text)}
+.adp-cv.g{color:#01A982}
+.adp-actions{display:flex;flex-wrap:wrap;gap:6px}
+.mobile-back-btn{display:none;align-items:center;gap:6px;padding:6px 10px;font-size:12px;font-weight:500;color:var(--pg-text2);cursor:pointer;border:none;background:none;border-bottom:0.5px solid var(--pg-border);width:100%;flex-shrink:0}
+.mobile-back-btn:hover{background:var(--pg-surface2)}
+.adp-action-btn{font-size:11px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;border:0.5px solid var(--pg-border);background:transparent;color:var(--pg-text2)}
+.adp-action-btn:hover{border-color:#01A982;color:#01A982}
+.adp-action-btn.danger{border-color:var(--pg-danger-border);color:var(--pg-danger-text)}
+.adp-action-btn.danger:hover{background:var(--pg-danger-bg)}
+.adp-action-btn.primary{background:#01A982;color:#fff;border-color:#01A982}
+.adp-week{border:0.5px solid var(--pg-border);border-radius:8px;overflow:hidden;background:var(--pg-surface);margin-bottom:4px}
+.adp-week-hdr{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;user-select:none}
+.adp-week-hdr:hover{background:var(--pg-surface2)}
+.adp-week-body{border-top:0.5px solid var(--pg-border);background:var(--pg-bg);display:none}
+.adp-week-body.open{display:block}
+.adp-week-grp{padding:7px 12px 7px 34px;border-bottom:0.5px solid var(--pg-border);display:flex;align-items:center;gap:6px;min-width:0}
+.adp-week-grp:last-child{border-bottom:none}
+.adp-week-grp.has-note{cursor:pointer}
+.adp-week-grp.has-note:hover{background:var(--pg-surface)}
+.adp-week-grp.grp-note-sel{background:#FFFBEB;border-left:2px solid #F59E0B}
+.admin-notes-handle{width:0;flex-shrink:0;background:transparent;cursor:col-resize;transition:background .15s;position:relative;z-index:10;display:none}
+.admin-notes-handle.visible{width:5px;display:block}
+.admin-notes-handle:hover,.admin-notes-handle.dragging{background:var(--pg-hpe-border)}
+.admin-notes-handle::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:40px;background:var(--pg-border);border-radius:1px}
+.admin-notes-pane{width:0;flex-shrink:0;background:var(--pg-surface);border-left:0;overflow:hidden;display:flex;flex-direction:column;transition:width .22s ease,border-left-width .22s ease}
+.admin-notes-pane.open{width:220px;border-left:0.5px solid var(--pg-border)}
+.anp-inner{min-width:220px;display:flex;flex-direction:column;height:100%;overflow:hidden}
+.anp-head{padding:10px 12px;border-bottom:0.5px solid var(--pg-border);display:flex;align-items:center;gap:7px;flex-shrink:0}
+.anp-title{font-size:12px;font-weight:700;color:var(--pg-text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anp-close{font-size:14px;color:var(--pg-text3);cursor:pointer;line-height:1;background:none;border:none}
+.anp-close:hover{color:var(--pg-text)}
+.anp-scroll{flex:1;overflow-y:auto;padding:10px 12px}
+.anp-entry{background:var(--pg-surface2);border-left:2px solid #F59E0B;border-radius:7px;padding:8px 10px;margin-bottom:7px}
+.anp-tags{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:4px}
+.anp-tag-w{font-size:9px;font-weight:700;padding:1px 5px;border-radius:7px;background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.anp-tag-s{font-size:9px;font-weight:600;padding:1px 5px;border-radius:7px;background:#EFF6FF;color:#1E40AF}
+.anp-entry-time{font-size:10px;color:var(--pg-text3);margin-bottom:3px}
+.anp-entry-text{font-size:12px;color:var(--pg-text);line-height:1.5}
+.anp-empty{font-size:11px;color:var(--pg-text3);text-align:center;padding:20px 10px;line-height:1.6}
+.ntl-wk{margin-bottom:12px}
+.ntl-wk-hdr{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.ntl-wk-num{width:26px;height:26px;border-radius:50%;border:2px solid #F59E0B;background:#FFFBEB;color:#92400E;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.ntl-wk-lbl{font-size:12px;font-weight:700;color:var(--pg-text)}
+.ntl-sec{margin-left:20px;border-left:1.5px solid var(--pg-border);padding-left:9px;margin-bottom:6px}
+.ntl-sec-hdr{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.ntl-sec-dot{width:7px;height:7px;border-radius:50%;background:#F59E0B;flex-shrink:0}
+.ntl-sec-name{font-size:10px;font-weight:700;color:var(--pg-text2)}
+.ntl-item-name{font-size:10px;color:var(--pg-text3);font-style:italic;margin:3px 0 2px}
+.ntl-card{background:var(--pg-surface2);border-radius:7px;padding:7px 9px;margin-bottom:5px}
+.ntl-time{font-size:10px;color:var(--pg-text3);margin-bottom:2px}
+.ntl-text{font-size:12px;line-height:1.5;color:var(--pg-text)}
+.amber-dot{width:8px;height:8px;border-radius:50%;background:#F59E0B;flex-shrink:0;cursor:pointer}
+.adp-week-grp-name{font-size:11px;color:var(--pg-text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adp-week-grp-ct{font-size:11px;font-weight:600;min-width:28px;text-align:right}
+.adp-week-grp-bar{width:36px;height:3px;background:var(--pg-border2);border-radius:2px;overflow:hidden;flex-shrink:0}
+.adp-week-grp-barf{height:100%;background:#01A982;border-radius:2px}
+.adp-wnum{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.adp-wdone{background:var(--pg-hpe-bg);color:var(--pg-hpe-text)}
+.adp-wact{background:#EFF6FF;color:#1E40AF}
+.adp-wlk{background:var(--pg-surface);color:var(--pg-text3)}
+/* Full-width user accordion + search + clean poc header */
+.users-view{flex:1;overflow-y:auto;padding:20px 24px;background:var(--pg-bg)}
+.ucp-grid{display:grid;grid-template-columns:1.4fr 1.4fr 1fr 0.8fr 0.8fr 1fr auto;gap:10px;align-items:end}
+.ua-row{background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:12px;margin-bottom:7px;overflow:hidden;transition:border-color .15s}
+.ua-row:hover{border-color:#86CEBA}
+.ua-row.ua-exp{border-color:#01A982}
+.ua-head{padding:11px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none}
+.ua-head:hover{background:var(--pg-surface2)}
+.ua-name{font-size:13px;font-weight:600;color:var(--pg-text);min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ua-email{font-size:12px;color:var(--pg-text2);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ua-region{font-size:12px;color:var(--pg-text2);min-width:80px;white-space:nowrap;flex-shrink:0}
+.ua-r{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.ua-status{font-size:11px;color:var(--pg-text3)}
+.ua-body{border-top:0.5px solid var(--pg-border);padding:12px 16px;background:var(--pg-bg);display:grid;grid-template-columns:repeat(5,1fr) auto;gap:10px;align-items:center}
+.ua-dk{font-size:10px;font-weight:700;color:var(--pg-text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.ua-dv{font-size:13px;color:var(--pg-text)}
+.ua-acol{display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+.sinput{flex:1;max-width:260px;padding:6px 10px;border:0.5px solid var(--pg-border);border-radius:7px;font-size:12px;color:var(--pg-text)!important;background:var(--pg-surface)!important;outline:none;color-scheme:light}
+[data-theme='dark'] .sinput{color-scheme:dark}
+.btn-block-poc{font-size:11px;font-weight:600;padding:6px 12px;border:0.5px solid var(--pg-danger-border);border-radius:7px;color:var(--pg-danger-text);background:var(--pg-surface);cursor:pointer;white-space:nowrap}
+.btn-block-poc:hover{background:var(--pg-danger-bg)}
+.btn-override{font-size:11px;font-weight:600;padding:6px 12px;border:0.5px solid #C4B5FD;border-radius:7px;color:#5B21B6;background:var(--pg-surface);cursor:pointer;white-space:nowrap}
+.btn-override:hover{background:#F3E8FF}
+.pra-info{flex:1;min-width:0}
+.pra-se{font-size:10px;color:var(--pg-text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-restore{font-size:11px;font-weight:600;padding:6px 12px;border:0.5px solid #5DCAA5;border-radius:7px;color:#085041;background:var(--pg-surface);cursor:pointer}
+.btn-restore:hover{background:var(--pg-hpe-bg)}
+.btn-copyurl{font-size:11px;font-weight:600;padding:6px 12px;border:0.5px solid var(--pg-border);border-radius:7px;color:var(--pg-text2);background:var(--pg-surface);cursor:pointer}
+.btn-copyurl:hover{border-color:#01A982;color:#01A982}
+/* POCS VIEW */
+.pocs-layout{flex:1;overflow-y:auto;padding:20px 24px;background:var(--pg-bg)}
+.pocs-inner{max-width:1100px;margin:0 auto}
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.fchip{font-size:12px;padding:5px 14px;border:0.5px solid #DDE3EC;border-radius:20px;color:#6B7280;cursor:pointer;background:#fff;user-select:none;transition:all .15s}
+.fchip:hover{border-color:#86CEBA;color:#0F6E56}
+.fchip.active{background:#01A982;color:#fff;border-color:#01A982}
+.poc-count{font-size:12px;color:#9CA3AF;margin-left:auto}
+.poc-row-a{background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .15s}
+.poc-row-a:hover{border-color:#86CEBA}
+.poc-row-a.expanded{border-color:#01A982}
+.pra-header{padding:13px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none}
+.pra-header:hover{background:#FAFFFE}
+.pra-av{width:36px;height:36px;border-radius:9px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0F6E56;flex-shrink:0}
+.pra-info{flex:1;min-width:0}
+.pra-name{font-size:13px;font-weight:600}
+.pra-meta{font-size:11px;color:#6B7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pra-se{font-size:10px;color:#9CA3AF;margin-top:1px}
+.pra-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.pra-prog{text-align:right}
+.pra-pct{font-size:13px;font-weight:700;color:#01A982}
+.pra-items{font-size:10px;color:#9CA3AF;margin-top:1px}
+.pra-bar{width:70px;height:3px;background:#E5E7EB;border-radius:2px;overflow:hidden;margin-top:3px}
+.pra-bar-f{height:100%;background:#01A982;border-radius:2px}
+.pra-acts{display:flex;gap:4px;align-items:center}
+.pra-btn{font-size:10px;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;border:0.5px solid #DDE3EC;color:#6B7280;background:#fff}
+.pra-btn:hover{border-color:#01A982;color:#01A982}
+.pra-btn.red{border-color:#FECACA;color:#991B1B}.pra-btn.red:hover{background:#FEF2F2}
+.pra-btn.purp{border-color:#C4B5FD;color:#5B21B6}.pra-btn.purp:hover{background:#F3E8FF}
+.pra-chev{color:#9CA3AF;font-size:14px;line-height:1;transition:transform .2s}
+.pra-chev.open{transform:rotate(180deg)}
+.pra-body{display:none;border-top:0.5px solid #F0F4F8}
+.pra-body.open{display:block}
+.pb-inner{padding:16px 18px 18px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stat-box{background:var(--pg-surface2);border-radius:8px;padding:10px 14px}
+.stat-lbl{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.stat-val{font-size:20px;font-weight:600}
+.stat-val .sub{font-size:13px;color:#9CA3AF;font-weight:400}
+.stat-val.green{color:#01A982}
+.stat-bar{margin-top:5px;height:3px;background:#E5E7EB;border-radius:2px;overflow:hidden}
+.stat-bar-f{height:100%;background:#01A982;border-radius:2px}
+.weeks-list{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.week-block{border:0.5px solid #DDE3EC;border-radius:9px;overflow:hidden}
+.week-block.wk-done{border-color:#9FE1CB}
+.week-block.wk-prog{border-color:#B5D4F4}
+.week-header{padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;background:var(--pg-surface)}
+.week-header:hover{background:#F9FBFD}
+.wk-num{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.wkn-done{background:#E1F5EE;color:#085041}
+.wkn-prog{background:#E6F1FB;color:#0C447C}
+.wkn-nil{background:#F4F6F9;color:#9CA3AF}
+.wk-label{flex:1;font-size:12px;font-weight:500}
+.wk-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.wk-so{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#E1F5EE;color:#085041}
+.wk-pct{font-size:12px;font-weight:700;min-width:30px;text-align:right}
+.pct-g{color:#01A982}.pct-dim{color:#9CA3AF}
+.wk-bar{width:56px;height:3px;background:#E5E7EB;border-radius:2px;overflow:hidden}
+.wk-bar-f{height:100%;background:#01A982;border-radius:2px}
+.wk-chev{color:#9CA3AF;font-size:13px;line-height:1;transition:transform .2s}
+.wk-chev.open{transform:rotate(180deg)}
+.week-body{display:none;border-top:0.5px solid #F0F4F8}
+.week-body.open{display:block}
+.grp-row{padding:8px 14px 7px 50px;border-bottom:0.5px solid #F8F9FA}
+.grp-row:last-of-type{border-bottom:none}
+.grp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.grp-name{font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:.06em}
+.grp-count{font-size:11px;font-weight:600;color:#374151}
+.grp-bar{height:3px;background:#E5E7EB;border-radius:2px;overflow:hidden}
+.grp-bar-f{height:100%;background:#01A982;border-radius:2px}
+.week-footer{padding:8px 14px 8px 50px;border-top:0.5px solid #F0F4F8;background:#F9FBFD;display:flex;align-items:center;justify-content:space-between}
+.wf-meta{font-size:11px;color:#9CA3AF}
+.btn-copy-wk{font-size:11px;font-weight:600;padding:4px 11px;border:0.5px solid #DDE3EC;border-radius:6px;color:#6B7280;background:#fff;cursor:pointer}
+.btn-copy-wk:hover{border-color:#01A982;color:#01A982}
+.btn-copy-wk.copied{border-color:#01A982;color:#085041;background:#E1F5EE}
+.poc-footer{display:flex;align-items:center;gap:8px;padding-top:4px;flex-wrap:wrap}
+.btn-copy-full{padding:7px 16px;background:#01A982;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-copy-full:hover{background:#0F6E56}
+.btn-copy-full.copied{background:#085041}
+.url-pill{font-size:11px;font-family:monospace;color:#0F6E56;padding:6px 12px;background:#E1F5EE;border-radius:7px;cursor:pointer;white-space:nowrap;overflow:hidden;max-width:320px;text-overflow:ellipsis}
+.url-pill:hover{background:#9FE1CB}
+.sbadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;display:inline-block}
+.sb-active{background:#E1F5EE;color:#085041}
+.sb-blocked{background:#FEF2F2;color:#991B1B}
+.sb-override{background:#F3E8FF;color:#5B21B6}
+.sb-completed{background:#E6F1FB;color:#0C447C}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:500}
+.modal-bg.open{display:flex}
+.modal{background:var(--pg-surface);border-radius:14px;padding:24px;width:360px}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:4px}
+.modal-sub{font-size:12px;color:#6B7280;margin-bottom:16px}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.btn-cancel{padding:7px 16px;border:0.5px solid #DDE3EC;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#6B7280}
+.btn-confirm{padding:7px 16px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-confirm:hover{background:#0F6E56}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(8px);background:#085041;color:#fff;font-size:12px;font-weight:600;padding:9px 20px;border-radius:20px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Dark mode form element overrides -- explicit hex, browser-proof */
+[data-theme='dark'] input,
+[data-theme='dark'] select,
+[data-theme='dark'] textarea {
+  background:#222225!important;
+  color:#EDEDED!important;
+  border-color:#3A3A40!important;
+  color-scheme:dark;
+}
+[data-theme='dark'] input::placeholder,
+[data-theme='dark'] textarea::placeholder {
+  color:#5A5A63!important;
+}
+[data-theme='dark'] input:focus,
+[data-theme='dark'] select:focus {
+  border-color:#01A982!important;
+  outline:none;
+}
+[data-theme='dark'] .fi,
+[data-theme='dark'] .fsel,
+[data-theme='dark'] .sinput,
+[data-theme='dark'] .sinput-d,
+[data-theme='dark'] .srch {
+  background:#222225!important;
+  color:#EDEDED!important;
+  border-color:#3A3A40!important;
+  color-scheme:dark;
+}
+
+@media(max-width:768px){
+  .topbar{padding:0 12px;height:auto;flex-wrap:wrap;gap:6px;padding-top:8px;padding-bottom:8px}
+  .top-tabs{padding:0 12px;flex-wrap:wrap}
+  .pocs-layout,.users-view{padding:12px}
+  .ucp-grid{grid-template-columns:1fr 1fr!important}
+  .ua-body{grid-template-columns:1fr 1fr!important}
+  .ua-name,.ua-email{min-width:0}
+  .ua-region{display:none}
+  .pra-header{flex-wrap:wrap;gap:6px}
+  .pra-info{width:100%}
+  .pra-right{width:100%;justify-content:flex-end;flex-wrap:wrap}
+  .stat-grid,.igrid{grid-template-columns:1fr 1fr!important}
+  .toolbar{flex-wrap:wrap;gap:5px}
+  .sinput{max-width:100%!important;width:100%}
+}
+
+/* Danger Zone */
+.danger-zone{margin-top:32px;border:1.5px solid #EF4444;border-radius:12px;overflow:hidden}
+.dz-header{background:#FEF2F2;border-bottom:1.5px solid #EF4444;padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.dz-title{font-size:13px;font-weight:700;color:#991B1B;flex:1}
+.dz-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:#EF4444;color:#fff;letter-spacing:.04em}
+.dz-body{padding:20px;background:#fff}
+[data-theme='dark'] .dz-body{background:#1A1A1C}
+[data-theme='dark'] .dz-header{background:rgba(239,68,68,.08)}
+.dz-warning{background:#FEF2F2;border:0.5px solid #FECACA;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#7F1D1D;line-height:1.7}
+.dz-warning strong{color:#991B1B}
+.dz-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.dz-stat{background:var(--pg-surface2);border-radius:8px;padding:10px 12px;text-align:center}
+.dz-stat-v{font-size:22px;font-weight:700;color:#EF4444}
+.dz-stat-k{font-size:10px;color:var(--pg-text3);margin-top:2px;text-transform:uppercase;letter-spacing:.06em}
+.dz-preserved{font-size:11px;color:var(--pg-text3);margin-bottom:16px;padding:8px 12px;background:var(--pg-surface2);border-radius:7px}
+.dz-confirm-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.dz-confirm-input{flex:1;padding:8px 12px;border:0.5px solid #FECACA;border-radius:7px;font-size:13px;font-weight:700;color:#991B1B;background:#FEF2F2;letter-spacing:.08em;outline:none;font-family:monospace}
+[data-theme='dark'] .dz-confirm-input{background:rgba(239,68,68,.08);color:#FCA5A5;border-color:rgba(239,68,68,.3)}
+.dz-confirm-input:focus{border-color:#EF4444}
+.btn-cleanup{width:100%;padding:11px;background:#EF4444;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.04em;opacity:.4;pointer-events:none}
+.btn-cleanup.ready{opacity:1;pointer-events:all}
+.btn-cleanup.ready:hover{background:#DC2626}
+.dz-result{background:#E1F5EE;border:0.5px solid #5DCAA5;border-radius:8px;padding:12px 14px;font-size:12px;color:#085041;display:none}
+
+[data-theme='dark'] .adp-wact{background:rgba(59,130,246,.15);color:#93C5FD}
+[data-theme='dark'] .adp-wdone{background:rgba(1,169,130,.12);color:#6EE7B7}
+[data-theme='dark'] .adp-wlk{background:var(--pg-surface2);color:var(--pg-text3)}
+[data-theme='dark'] .btn-override{background:var(--pg-surface);border-color:rgba(139,92,246,.35);color:#C4B5FD}
+[data-theme='dark'] .btn-override:hover{background:rgba(139,92,246,.1)}
+[data-theme='dark'] .pr-badge{background:rgba(1,169,130,.1);color:#6EE7B7}
+[data-theme='dark'] .fchip{background:var(--pg-surface2);color:var(--pg-text2)}
+[data-theme='dark'] .fchip.active{background:rgba(1,169,130,.15);color:#6EE7B7;border-color:rgba(1,169,130,.3)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-left">
+    <div class="hpe-badge">HPE</div>
+    <div class="tb-sep"></div>
+    <div class="tb-title">POC Bible Admin</div>
+    <span class="admin-badge" id="tb-role">ADMIN</span>
+  </div>
+  <div class="tb-right">
+    <span class="tb-user" id="tb-user"></span>
+    <button class="btn-so" id="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark mode">🌙</button>
+    
+    <button class="btn-so" onclick="logout()">Sign out</button>
+  </div>
+</div>
+
+<!-- ALWAYS-VISIBLE TAB NAV -->
+<div class="top-tabs">
+  <div class="top-tab active" id="tab-users" onclick="showTab('users')">Users</div>
+  <div class="top-tab" id="tab-pocs" onclick="showTab('pocs')">All POCs</div>
+  <div class="top-tab" id="tab-sync" onclick="showTab('sync')">Sync</div>
+  <div class="top-tab" id="tab-analytics" onclick="showTab('analytics')">Analytics</div>
+</div>
+
+<div class="content-area">
+  <!-- USERS VIEW -->
+  <div class="users-view" id="view-users">
+    <div style="max-width:1100px;margin:0 auto">
+
+      <!-- Create form -- full width, collapsible -->
+      <div style="background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:12px;margin-bottom:14px;overflow:hidden" id="user-create-panel">
+        <div style="padding:14px 16px" id="ucp-inner">
+          <div id="user-form-msg" class="form-msg"></div>
+          <div class="ucp-grid">
+            <div><div class="fl">Full name</div><input class="fi" id="u-name" placeholder="Jane Smith" style="color-scheme:light"></div>
+            <div><div class="fl">Email</div><input class="fi" id="u-email" type="email" placeholder="jane@hpe.com" style="color-scheme:light"></div>
+            <div><div class="fl">Password</div><input class="fi" id="u-pass" type="password" placeholder="Initial password" style="color-scheme:light"></div>
+            <div><div class="fl">Role</div>
+              <select class="fi" id="u-role" onchange="onRoleChange()" style="color-scheme:light">
+                <option value="se">SE</option>
+                <option value="partner">Partner</option>
+                <option value="admin" id="opt-admin" style="display:none">Admin</option>
+              </select>
+            </div>
+            <div><div class="fl">Region</div>
+              <select class="fi" id="u-region" style="color-scheme:light">
+                <option value="">— Region —</option>
+                <option>APAC</option><option>AMERICAS</option><option>EUROPE</option>
+                <option>MIDDLE EAST</option><option>AFRICA</option>
+              </select>
+            </div>
+            <div id="company-field" style="display:none"><div class="fl">Company</div><input class="fi" id="u-company" placeholder="Partner org" style="color-scheme:light"></div>
+            <div style="display:flex;align-items:flex-end;gap:6px">
+              <button class="btn-create-u" onclick="createUser()" style="height:34px;flex:1">Create</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter toolbar -->
+      <div class="toolbar">
+        <span class="fchip" data-urole="" onclick="setUserFilter(this,'')">All</span>
+        <span class="fchip" data-urole="se" onclick="setUserFilter(this,'se')">SE</span>
+        <span class="fchip" data-urole="partner" onclick="setUserFilter(this,'partner')">Partner</span>
+        <span class="fchip" data-urole="admin" onclick="setUserFilter(this,'admin')">Admin</span>
+        <span class="fchip" data-urole="inactive" onclick="setUserFilter(this,'inactive')">Deactivated</span>
+        <input class="sinput" placeholder="Search by name or email…" oninput="setUserSearch(this.value)" style="color-scheme:light">
+        <span class="poc-count" id="user-count-lbl"></span>
+      </div>
+
+      <div id="user-list"></div>
+
+    </div>
+  </div>
+
+  <!-- POCS VIEW -->
+  <div id="view-pocs" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+    <!-- Admin summary strip -->
+    <div class="summary-strip" id="admin-summary-strip">
+      <div class="ss-cell" onclick="adminFilter('active')"><div class="ss-k">Active</div><div class="ss-v g" id="adm-active">0</div></div>
+      <div class="ss-cell" onclick="adminFilter('pending')"><div class="ss-k">Pending</div><div class="ss-v" style="color:#92400E" id="adm-pending">0</div></div>
+      <div class="ss-cell" onclick="adminFilter('expiring')"><div class="ss-k">Expiring in 7d</div><div class="ss-v a" id="adm-expiring">0</div></div>
+      <div class="ss-cell" onclick="adminFilter('blocked')"><div class="ss-k">Blocked</div><div class="ss-v r" id="adm-blocked">0</div></div>
+      <div class="ss-cell"><div class="ss-k">Total POCs</div><div class="ss-v" id="adm-total">0</div></div>
+      <div class="ss-cell"><div class="ss-k">Completed</div><div class="ss-v" id="adm-done">0</div></div>
+    </div>
+    <div style="display:flex;flex:1;overflow:hidden">
+      <div class="list-pane" id="admin-list-pane">
+        <div class="toolbar">
+          <span class="fchip active" data-filter="" onclick="setPocFilter(this)">All</span>
+          <span class="fchip" data-filter="active" onclick="setPocFilter(this)">Active</span>
+          <span class="fchip" data-filter="blocked" onclick="setPocFilter(this)">Blocked</span>
+          <span class="fchip" data-filter="completed" onclick="setPocFilter(this)">Completed</span>
+          <span class="fchip" data-filter="completion_requested" onclick="setPocFilter(this)">Pending</span>
+          <input class="sinput" placeholder="Search POCs…" oninput="setPocSearch(this.value)" style="color-scheme:light;max-width:180px">
+          <select class="fchip fsel" id="filter-poc-role" onchange="loadPocs()" style="border-radius:20px;padding:4px 12px;cursor:pointer;appearance:auto;min-width:110px">
+            <option value="">SE + Partner</option>
+            <option value="se">SE only</option>
+            <option value="partner">Partner only</option>
+          </select>
+          <span class="poc-count" id="poc-count-lbl" style="margin-left:auto"></span>
+        </div>
+        <div id="poc-list"></div>
+      </div>
+      <div class="pane-handle" id="admin-pane-handle" title="Drag to resize"></div>
+      <div class="detail-pane" id="admin-detail-pane" style="display:none"></div>
+      <div class="admin-notes-handle" id="admin-notes-handle"></div>
+      <div class="admin-notes-pane" id="admin-notes-pane">
+        <div class="anp-inner">
+          <div class="anp-head">
+            <span style="font-size:13px">&#x1F4AC;</span>
+            <span class="anp-title" id="anp-title">Customer notes</span>
+            <button class="anp-close" onclick="closeAdminNotesPane()" title="Close">&#x2715;</button>
+          </div>
+          <div class="anp-scroll" id="anp-scroll">
+            <div class="anp-empty">Click a section with an amber dot to see customer notes.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS VIEW -->
+  <div class="pocs-layout" id="view-analytics" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0;flex-shrink:0">
+      <div style="font-size:13px;font-weight:700;color:var(--pg-text)">Analytics</div>
+      <button onclick="loadAnalytics()" style="font-size:11px;padding:4px 12px;border:0.5px solid var(--pg-border);border-radius:6px;background:var(--pg-surface);color:var(--pg-text2);cursor:pointer;font-weight:600">&#8635; Refresh</button>
+    </div>
+    <div id="analytics-body" style="flex:1;overflow-y:auto;padding:16px">
+      <div style="text-align:center;padding:40px;color:var(--pg-text3)">Loading analytics…</div>
+    </div>
+  </div>
+
+  <!-- SYNC VIEW -->
+  <div class="pocs-layout" id="view-sync" style="display:none">
+    <div class="pocs-inner" style="max-width:700px">
+      <div style="margin-bottom:20px">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px">Smartsheet Sync</div>
+        <div style="font-size:12px;color:#6B7280">Bi-daily sync runs automatically every 2 days at midnight IST. Weekly push runs every Sunday at midnight IST.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+        <div style="background:#fff;border:0.5px solid #DDE3EC;border-radius:12px;padding:18px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px">Bi-daily sync</div>
+          <div style="font-size:11px;color:#6B7280;margin-bottom:12px">Smartsheet → DB. Updates POC statuses, auto-blocks rejected or completed POCs, auto-expires past end-date POCs.</div>
+          <div id="bidaily-result" style="font-size:11px;color:#6B7280;margin-bottom:10px;min-height:16px"></div>
+          <button onclick="runSync('smartsheet','bidaily-result')" style="padding:7px 16px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Run now</button>
+        </div>
+        <div style="background:#fff;border:0.5px solid #DDE3EC;border-radius:12px;padding:18px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px">Weekly progress push</div>
+          <div style="font-size:11px;color:#6B7280;margin-bottom:12px">DB → Smartsheet. Prepends progress summary to the Weekly Status Update column for all active POCs.</div>
+          <div id="weekly-result" style="font-size:11px;color:#6B7280;margin-bottom:10px;min-height:16px"></div>
+          <button onclick="runSync('progress','weekly-result')" style="padding:7px 16px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Run now</button>
+        </div>
+      </div>
+      <div style="background:#fff;border:0.5px solid #DDE3EC;border-radius:12px;padding:18px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Recent sync log</div>
+        <div id="sync-log" style="font-size:12px;color:#6B7280">Click either sync button to see logs here.</div>
+      </div>
+
+      <!-- ── DANGER ZONE ──────────────────────────────────────────────────── -->
+      <div class="danger-zone" id="danger-zone" style="margin-top:32px">
+        <div class="dz-header" onclick="toggleDangerZone()">
+          <span class="dz-title">⚠ Danger Zone — Database Cleanup</span>
+          <span class="dz-badge">QA / TESTING ONLY</span>
+          <span id="dz-chevron" style="font-size:12px;color:#991B1B">▼</span>
+        </div>
+        <div id="dz-body" class="dz-body" style="display:none">
+          <div class="dz-warning">
+            <strong>REMOVE THIS SECTION BEFORE GOING TO PRODUCTION.</strong><br>
+            Permanently deletes <strong>all users, POCs, checklist states, notes and sync logs</strong> from PostgreSQL.<br>
+            Master admin account is preserved. <strong>Smartsheet is NOT touched.</strong>
+          </div>
+          <div id="dz-stats" style="display:none">
+            <div class="dz-stats">
+              <div class="dz-stat"><div class="dz-stat-v" id="dz-users">—</div><div class="dz-stat-k">Users</div></div>
+              <div class="dz-stat"><div class="dz-stat-v" id="dz-pocs">—</div><div class="dz-stat-k">POCs</div></div>
+              <div class="dz-stat"><div class="dz-stat-v" id="dz-states">—</div><div class="dz-stat-k">States</div></div>
+              <div class="dz-stat"><div class="dz-stat-v" id="dz-notes">—</div><div class="dz-stat-k">Notes</div></div>
+              <div class="dz-stat"><div class="dz-stat-v" id="dz-logs">—</div><div class="dz-stat-k">Sync logs</div></div>
+              <div class="dz-stat"><div class="dz-stat-v" style="color:#01A982;font-size:14px">Safe</div><div class="dz-stat-k">Smartsheet</div></div>
+            </div>
+            <div class="dz-preserved" id="dz-preserved"></div>
+          </div>
+          <div style="margin-bottom:12px">
+            <button class="btn-sm" id="btn-preview-cleanup" onclick="previewCleanup()" style="width:100%;padding:9px">Preview what will be deleted</button>
+          </div>
+          <div class="dz-confirm-row">
+            <input class="dz-confirm-input" id="dz-confirm-input" placeholder="Type CLEAN to enable" oninput="onCleanConfirmInput(this.value)" autocomplete="off" spellcheck="false">
+          </div>
+          <button class="btn-cleanup" id="btn-execute-cleanup" onclick="executeCleanup()">DELETE ALL TEST DATA</button>
+          <div id="dz-confirm2" style="display:none;margin-top:10px;padding:12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px">
+            <div style="font-size:12px;color:#7F1D1D;margin-bottom:10px;font-weight:600">⚠ Final confirmation — this cannot be undone. Proceed?</div>
+            <div style="display:flex;gap:8px">
+              <button onclick="cancelCleanup()" style="flex:1;padding:8px;border:1px solid #D1D5DB;border-radius:6px;background:#fff;font-size:12px;cursor:pointer">Cancel</button>
+              <button onclick="finalCleanup()" style="flex:1;padding:8px;background:#EF4444;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Yes, delete everything</button>
+            </div>
+          </div>
+          <div class="dz-result" id="dz-result"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-bg" id="delete-poc-modal" onclick="if(event.target===this)closeDeleteModal()">
+  <div class="modal">
+    <div class="modal-title" style="color:#EF4444">Delete POC</div>
+    <div class="modal-sub" id="delete-poc-modal-sub"></div>
+    <div style="font-size:12px;color:#6B7280;line-height:1.7;margin:12px 0">
+      This removes the POC and all checklist data from the database.<br>
+      The Smartsheet row will <strong>NOT</strong> be touched.<br>
+      The SE can re-create the POC after deletion.<br>
+      <strong>This cannot be undone.</strong>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-confirm" style="background:#EF4444" id="btn-confirm-delete" onclick="confirmDeletePoc()">Delete permanently</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="reset-modal">
+  <div class="modal">
+    <div class="modal-title">Reset password</div>
+    <div class="modal-sub" id="reset-modal-sub"></div>
+    <div><div class="fl">New password</div><input class="fi" type="password" id="reset-pass" placeholder="Minimum 6 characters" style="margin-top:3px"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeResetModal()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmReset()">Reset password</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WEEK_STRUCTURE=[
+  {id:'week1',label:'Week 1 – Installation & Setup',groups:[
+    {id:'grp-prereq',name:'Pre-installation requirements',count:6,items:['p1','p2','p3','p4','p5','p6']},
+    {id:'grp-network',name:'Network and firewall verification',count:2,items:['n1','n2']},
+    {id:'grp-install',name:'Package download and installation',count:5,items:['i1','i2','i3','i4','i5']},
+    {id:'grp-verify',name:'Post-installation verification',count:3,items:['v1','v2','v3']},
+    {id:'grp-setup',name:'Initial appliance setup and license',count:5,items:['s1','s2','s3','s4','s6']}]},
+  {id:'week2',label:'Week 2 – Add Clouds and Build Governance',groups:[
+    {id:'grp-license-planning',name:'POC license planning',count:1,items:['lp1']},
+    {id:'grp-aws',name:'Add AWS cloud',count:4,items:['aws1','aws2','aws3','aws4']},
+    {id:'grp-vmware',name:'Add VMware vCenter cloud',count:3,items:['vc1','vc2','vc3']},
+    {id:'grp-tenants',name:'Tenants and groups',count:2,items:['t1','t2']},
+    {id:'grp-roles',name:'Roles and users',count:2,items:['r1','r2']},
+    {id:'grp-policies',name:'Policies',count:5,items:['rdpol1','rdpol2','rdpol3','pol-naming','pol-tags']},
+    {id:'grp-w2verify',name:'Verify governance',count:3,items:['wv1','wv2','wv3']}]},
+  {id:'week3',label:'Week 3 – Provision Workloads and Golden Images',groups:[
+    {id:'grp-w3-aws',name:'Provision on AWS',count:3,items:['w3a1','w3a2','w3a3']},
+    {id:'grp-w3-golden-linux',name:'Linux golden image on VMware',count:3,items:['w3g1','w3g2','w3g3']},
+    {id:'grp-w3-automation',name:'Application automation and service catalog',count:4,items:['w3cy1','w3t1','w3t2','w3t3']},
+    {id:'grp-w3-golden-win',name:'Windows golden image on VMware',count:1,items:['w3w1']}]},
+  {id:'week4',label:'Week 4 – Blueprints, Multi-Cloud Catalog and FinOps',groups:[
+    {id:'grp-w4-blueprints',name:'App blueprints',count:2,items:['w4b1','w4b2']},
+    {id:'grp-w4-catalog',name:'Multi-cloud catalog item',count:3,items:['w4c1','w4c2','w4c3']},
+    {id:'grp-w4-finops',name:'FinOps – cost visibility and governance',count:3,items:['w4f1','w4f2','w4f3']}]},
+  {id:'week5',label:'Week 5 – Review, Validation and Sign-Off',groups:[
+    {id:'grp-w5-e2e',name:'End-to-end scenario run',count:1,items:['w5e1']},
+    {id:'grp-w5-health',name:'Appliance health and backup',count:2,items:['w5h1','w5h2']},
+    {id:'grp-w5-analytics',name:'Analytics, guidance and reports',count:3,items:['w5a1','w5a2','w5a3']},
+    {id:'grp-w5-signoff',name:'Success criteria review and sign-off',count:2,items:['w5s1','w5s2']}]},
+];
+
+const API='';
+const token=localStorage.getItem('token');
+if(!token)window.location.href='/login';
+const hdr=()=>({'Content-Type':'application/json','Authorization':'Bearer '+token});
+(function(){const _f=window.fetch.bind(window);window.fetch=async function(...a){const r=await _f(...a);if(r.status===401){localStorage.clear();window.location.href='/login';}return r;};})();
+
+let isMaster=false;
+let currentUserId=null;
+let openUsers=new Set();
+let userSearchTerm='';
+let pocSearchTerm='';
+let users=[],pocs=[];
+let openPocs=new Set(),openWeeks={},_progress={},_groupState={};
+let activeFilter='';
+
+let _tt;
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),2500);}
+
+
+async function init(){
+  document.getElementById('tb-user').textContent=localStorage.getItem('userName')||'';
+  try{
+    const res=await fetch(API+'/api/admin/me',{headers:hdr()});
+    if(!res.ok){window.location.href='/login';return;}
+    const me=await res.json();
+    isMaster=me.is_master;
+    currentUserId=me.id;
+    const el=document.getElementById('tb-role');
+    el.textContent=isMaster?'MASTER ADMIN':'ADMIN';
+    el.className='admin-badge '+(isMaster?'badge-master':'badge-admin');
+    if(isMaster)document.getElementById('opt-admin').style.display='';
+    else document.getElementById('filter-admin-opt').style.display='none';
+  }catch(e){}
+  await loadUsers();
+  initAdminResizable();
+}
+
+function showTab(tab){
+  ['users','pocs','sync','analytics'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+    const show = t===tab;
+    const el = document.getElementById('view-'+t);
+    if(!show){ el.style.display='none'; return; }
+    el.style.display = t==='pocs' ? 'flex' : 'block';
+    el.style.flexDirection = t==='pocs' ? 'column' : '';
+  });
+  if(tab==='pocs'){loadPocs();setTimeout(initAdminResizable,50);}
+  if(tab==='sync') loadSyncLogs();
+  if(tab==='analytics') loadAnalytics();
+}
+
+async function runSync(type, resultElId){
+  const el = document.getElementById(resultElId);
+  el.style.color='#9CA3AF'; el.textContent='Running...';
+  try{
+    const res = await fetch(API+'/api/sync/'+type, {method:'POST',headers:hdr()});
+    const data = await res.json();
+    if(!res.ok){ el.style.color='#DC2626'; el.textContent = data.detail||'Error'; return; }
+    el.style.color='#01A982';
+    el.textContent = data.message || JSON.stringify(data);
+    loadSyncLogs();
+  }catch(e){ el.style.color='#DC2626'; el.textContent='Connection error'; }
+}
+
+async function loadSyncLogs(){
+  try{
+    const res = await fetch(API+'/api/sync/logs',{headers:hdr()});
+    if(!res.ok) return;
+    const logs = await res.json();
+    const el = document.getElementById('sync-log');
+    if(!logs.length){ el.textContent='No sync runs yet.'; return; }
+    el.innerHTML = logs.map(l=>`
+      <div style="display:flex;gap:10px;padding:6px 0;border-bottom:0.5px solid #F4F6F9;align-items:flex-start">
+        <span style="color:${l.success?'#01A982':'#DC2626'};font-size:11px;font-weight:700;flex-shrink:0">${l.success?'✓':'✗'}</span>
+        <span style="font-size:10px;color:#9CA3AF;flex-shrink:0;white-space:nowrap">${(l.synced_at||'').slice(0,16)}</span>
+        <span style="font-size:10px;background:${l.sync_type==='bidaily'?'#E6F1FB':'#E1F5EE'};color:${l.sync_type==='bidaily'?'#0C447C':'#085041'};padding:1px 7px;border-radius:10px;flex-shrink:0">${l.sync_type}</span>
+        <span style="font-size:11px;color:#374151">${l.message}</span>
+      </div>`).join('');
+  }catch(e){}
+}
+
+// ── USER FORM ──
+let formOpen=false;
+function toggleUserForm(){formOpen=!formOpen;document.getElementById('create-user-form').classList.toggle('open',formOpen);document.getElementById('btn-new-user').textContent=formOpen?'✕ Close':'+ New User';}
+function onRoleChange(){document.getElementById('company-field').style.display=document.getElementById('u-role').value==='partner'?'':'none';}
+function showFormMsg(id,msg,ok){const el=document.getElementById(id);el.textContent=msg;el.className='form-msg '+(ok?'ok':'err');el.style.display='block';if(ok)setTimeout(()=>el.style.display='none',5000);}
+
+async function createUser(){
+  const body={name:document.getElementById('u-name').value.trim(),email:document.getElementById('u-email').value.trim(),password:document.getElementById('u-pass').value,role:document.getElementById('u-role').value,region:document.getElementById('u-region').value||null,company:document.getElementById('u-company').value.trim()||null};
+  if(!body.name||!body.email||!body.password){showFormMsg('user-form-msg','Name, email, and password are required.',false);return;}
+  if(body.role==='partner'&&!body.company){showFormMsg('user-form-msg','Company is required for partner accounts.',false);return;}
+  try{const res=await fetch(API+'/api/admin/users',{method:'POST',headers:hdr(),body:JSON.stringify(body)});const data=await res.json();if(!res.ok){showFormMsg('user-form-msg',data.detail||'Error.',false);return;}showFormMsg('user-form-msg','User created: '+data.email+' ('+data.role+')',true);document.getElementById('u-name').value='';document.getElementById('u-email').value='';document.getElementById('u-pass').value='';await loadUsers();}catch(e){showFormMsg('user-form-msg','Connection error.',false);}
+}
+
+// ── USERS ──
+async function loadUsers(){const role=window._userFilterRole||'';try{const res=await fetch(API+'/api/admin/users'+(role&&role!=='inactive'?'?role='+role:''),{headers:hdr()});users=await res.json();renderUserList();}catch(e){console.error('loadUsers error:',e);}}
+
+function setUserFilter(el,role){
+  document.querySelectorAll('.toolbar .fchip[data-urole]').forEach(ch=>ch.classList.remove('active'));
+  el.classList.add('active');
+  window._userFilterRole=role;
+  renderUserList();
+}
+function setUserSearch(val){ window._userSearch=val; renderUserList(); }
+function setPocSearch(val){ pocSearchTerm=val; renderPocList(); }
+function toggleUser(uid){
+  if(openUsers.has(uid)) openUsers.delete(uid); else openUsers.add(uid);
+  renderUserList();
+}
+async function showResetPw(uid,name){
+  _resetUserId=uid;
+  document.getElementById('reset-modal-sub').textContent='Set a new password for '+name+'.';
+  document.getElementById('reset-pass').value='';
+  document.getElementById('reset-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('reset-pass').focus(),100);
+}
+function renderUserList(){
+  const role=window._userFilterRole||'';
+  const search=(window._userSearch||'').toLowerCase();
+  let list=[...users];
+  if(role==='inactive') list=list.filter(u=>!u.is_active);
+  else if(role==='admin') list=list.filter(u=>u.role==='admin'||u.role==='master_admin');
+  else if(role) list=list.filter(u=>u.role===role);
+  if(search) list=list.filter(u=>(u.name||'').toLowerCase().includes(search)||(u.email||'').toLowerCase().includes(search));
+  const el=document.getElementById('user-list');
+  if(!el) return;
+  const lbl=document.getElementById('user-count-lbl');
+  if(lbl) lbl.textContent=list.length+' user'+(list.length!==1?'s':'');
+  if(!list.length){el.innerHTML='<div style="padding:24px;text-align:center;font-size:13px;color:#9CA3AF">No users found.</div>';return;}
+  const rcolors={se:'#E1F5EE',partner:'#EFF6FF',admin:'#FFF3E0',master_admin:'#F3E8FF'};
+  const rtcolors={se:'#085041',partner:'#1E40AF',admin:'#7C3A00',master_admin:'#5B21B6'};
+  const rlabels={se:'SE',partner:'Partner',admin:'Admin',master_admin:'Master Admin'};
+  el.innerHTML=list.map(u=>{
+    const init=(u.name||u.email).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const isExp=openUsers.has(u.id);
+    const rc=rcolors[u.role]||'#F4F6F9';
+    const rtc=rtcolors[u.role]||'#374151';
+    const rl=rlabels[u.role]||u.role.toUpperCase();
+    const canMod=!u.is_master;  // is_master flag, not role string -- role is "admin" not "master_admin"
+    const canDeactivate=canMod&&u.is_active&&u.id!==currentUserId;  // also no self-deactivation
+    const statusHtml=u.is_active?'Active':'<span style="color:#991B1B">Inactive</span>';
+    return `<div class="ua-row${isExp?' ua-exp':''}">
+      <div class="ua-head" onclick="toggleUser(${u.id})">
+        <div class="uc-av" style="background:${rc};color:${rtc}">${init}</div>
+        <div class="ua-name">${u.name||u.email}</div>
+        <div class="ua-email">${u.email}</div>
+        <div class="ua-region">${u.region||'<span style="color:#9CA3AF">—</span>'}</div>
+        <div class="ua-r">
+          <span class="rbadge" style="background:${rc};color:${rtc}">${rl}</span>
+          <span class="ua-status">${statusHtml}</span>
+          <span style="font-size:12px;color:#9CA3AF;width:16px;text-align:center">${isExp?'▲':'▼'}</span>
+        </div>
+      </div>
+      ${isExp?`<div class="ua-body">
+        <div><div class="ua-dk">Account ID</div><div class="ua-dv">#${u.id}</div></div>
+        <div><div class="ua-dk">Created</div><div class="ua-dv">${(u.created_at||'').slice(0,10)||'—'}</div></div>
+        <div><div class="ua-dk">Region</div><div class="ua-dv">${u.region||'—'}</div></div>
+        <div><div class="ua-dk">Company</div><div class="ua-dv">${u.company||'HPE'}</div></div>
+        <div><div class="ua-dk">Status</div><div class="ua-dv">${u.is_active?'Active':'Inactive'}</div></div>
+        <div class="ua-acol">
+          ${canMod?`<button class="btn-sm" onclick="event.stopPropagation();showResetPw(${u.id},'${(u.name||u.email).replace(/'/g,'')}')">Reset password</button>`:''}
+          ${canDeactivate?`<button class="btn-danger-sm" onclick="event.stopPropagation();revokeUser(${u.id})">Deactivate</button>`:''}
+          ${canMod&&!u.is_active?`<button class="btn-sm" onclick="event.stopPropagation();reactivateUser(${u.id})">Reactivate</button>`:''}
+        </div>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+let _resetUserId=null;
+function openResetModal(uid,name){showResetPw(uid,name);}
+function closeResetModal(){document.getElementById('reset-modal').classList.remove('open');_resetUserId=null;}
+async function confirmReset(){
+  const pass=document.getElementById('reset-pass').value;
+  if(!pass||pass.length<8){showToast('Password must be at least 8 characters');return;}
+  try{
+    const res=await fetch(API+'/api/admin/users/'+_resetUserId+'/reset-password',{method:'PUT',headers:hdr(),body:JSON.stringify({new_password:pass})});
+    const data=await res.json();
+    if(!res.ok){showToast(data.detail||'Error');return;}
+    closeResetModal();showToast('Password reset successfully');
+  }catch(e){showToast('Connection error');}
+}
+async function revokeUser(id){
+  if(!confirm('Deactivate this user?'))return;
+  try{
+    const res=await fetch(API+'/api/admin/users/'+id+'/revoke',{method:'PUT',headers:hdr()});
+    const data=await res.json();
+    if(!res.ok){showToast(data.detail||'Cannot deactivate this user.');return;}
+    showToast('User deactivated');
+    await loadUsers();
+  }catch(e){showToast('Connection error.');}
+}
+async function reactivateUser(id){await fetch(API+'/api/admin/users/'+id+'/reactivate',{method:'PUT',headers:hdr()});showToast('User reactivated');await loadUsers();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeResetModal();});
+
+
+// ── ADMIN COMPACT ROW + DETAIL PANEL ────────────────────────────
+let selectedAdminPoc=null;
+let _adminBlockConfirm=null;
+let _adminProgress={};
+
+function adminFilter(type){
+  const now=new Date();
+  let filtered=pocs;
+  if(type==='active') filtered=pocs.filter(p=>!p.force_blocked&&(p.status||'active')==='active'&&p.status!=='completion_requested');
+  else if(type==='pending') filtered=pocs.filter(p=>p.status==='completion_requested');
+  else if(type==='expiring') filtered=pocs.filter(p=>{const d=Math.round((new Date(p.end_date)-now)/86400000);return d<=7&&d>=0&&!p.force_blocked;});
+  else if(type==='blocked') filtered=pocs.filter(p=>p.force_blocked);
+  renderAdminPocList(filtered);
+}
+
+function renderAdminSummaryStrip(){
+  const now=new Date();
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('adm-active',pocs.filter(p=>!p.force_blocked&&(p.status||'active')==='active'&&p.status!=='completion_requested').length);
+  set('adm-pending',pocs.filter(p=>p.status==='completion_requested').length);
+  set('adm-expiring',pocs.filter(p=>{const d=Math.round((new Date(p.end_date)-now)/86400000);return d<=7&&d>=0&&!p.force_blocked;}).length);
+  set('adm-blocked',pocs.filter(p=>p.force_blocked).length);
+  set('adm-total',pocs.length);
+  set('adm-done',pocs.filter(p=>(p.status||'active')==='completed').length);
+}
+
+function renderPocList(){
+  renderAdminSummaryStrip();
+  const role=document.getElementById('filter-poc-role')?.value||'';
+  let filtered=activeFilter?pocs.filter(p=>activeFilter==='blocked'?p.force_blocked:activeFilter==='active'?(p.status||'active')==='active'&&p.status!=='completion_requested':(p.status||'active')===activeFilter):pocs;
+  if(pocSearchTerm){const s=pocSearchTerm.toLowerCase();filtered=filtered.filter(p=>(p.customer_name||'').toLowerCase().includes(s)||(p.poc_id||'').toLowerCase().includes(s)||(p.se_email||'').toLowerCase().includes(s));}
+  document.getElementById('poc-count-lbl').textContent=filtered.length+' POC'+(filtered.length===1?'':'s');
+  const list=document.getElementById('poc-list');
+  if(!filtered.length){list.innerHTML='<div style="padding:40px;text-align:center;font-size:13px;color:var(--pg-text3)">No POCs match this filter.</div>';return;}
+  list.innerHTML=filtered.map(p=>renderAdminPocRow(p)).join('');
+}
+
+function renderAdminPocList(filtered){
+  document.getElementById('poc-count-lbl').textContent=filtered.length+' POC'+(filtered.length===1?'':'s');
+  const list=document.getElementById('poc-list');
+  if(!filtered.length){list.innerHTML='<div style="padding:40px;text-align:center;font-size:13px;color:var(--pg-text3)">No POCs match this filter.</div>';return;}
+  list.innerHTML=filtered.map(p=>renderAdminPocRow(p)).join('');
+}
+
+function renderAdminPocRow(p){
+  const now=new Date();
+  const daysLeft=Math.max(0,Math.round((new Date(p.end_date)-now)/86400000));
+  const pct=p.progress_pct||0;
+  const init=(p.customer_name||'??').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const sel=selectedAdminPoc===p.poc_id;
+  const blocked=p.force_blocked;
+  const expiring=daysLeft<=7&&!blocked&&(p.status||'active')==='active';
+  const daysClass=daysLeft<=7?'dp-err':daysLeft<=14?'dp-warn':'dp-ok';
+  let statusBadge=blocked?`<span class="pr-status ps-blk">Blocked</span>`
+    :(p.status||'active')==='completed'?`<span class="pr-status ps-done">Done</span>`
+    :p.status==='completion_requested'?`<span class="pr-status" style="background:var(--pg-warn-bg,rgba(245,158,11,.12));color:var(--pg-warn-text,#92400E)">Pending</span>`
+        :p.admin_override?`<span class="pr-status" style="background:#F3E8FF;color:#5B21B6">Override</span>`
+    :`<span class="pr-status ps-act">Active</span>`;
+  const rowClass=`pr${sel?' sel':''}${blocked?' pr-err':expiring?' pr-warn':''}`;
+  let qaStrip='';
+  if(sel){
+    const blockBtn=blocked
+      ?`<button class="qa-btn qa-restore" onclick="event.stopPropagation();unblockPoc('${p.poc_id}')">Restore access</button>`
+      :`<button class="qa-btn qa-block" onclick="event.stopPropagation();adminBlockConfirm('${p.poc_id}')">Block access</button>`;
+    qaStrip=`<div class="qa-strip" onclick="event.stopPropagation()">
+      <button class="qa-btn" onclick="copyAdminStatus('${p.poc_id}')">Copy status</button>
+      <button class="qa-btn" onclick="navigator.clipboard.writeText(window.location.origin+'/poc/'+pocs.find(x=>x.poc_id==='${p.poc_id}')?.access_token).then(()=>showToast('URL copied'))">Copy URL</button>
+      <button class="qa-btn" onclick="window.open('/poc/'+pocs.find(x=>x.poc_id==='${p.poc_id}')?.access_token,'_blank')" title="Open customer Bible">View as customer</button>
+      ${blockBtn}
+      ${p.admin_override
+        ?`<button class="qa-btn" style="border-color:#C4B5FD;color:#5B21B6" onclick="event.stopPropagation();revokeOverride('${p.poc_id}')">Revoke override</button>`
+        :`<button class="qa-btn" style="border-color:#C4B5FD;color:#5B21B6" onclick="event.stopPropagation();overridePoc('${p.poc_id}')">Override</button>`}
+    </div>
+    ${_adminBlockConfirm===p.poc_id?renderAdminBlockConfirm(p):''}`;
+  }
+  return `<div class="${rowClass}" id="apr-${p.poc_id.replace(/[^a-z0-9]/gi,'_')}" onclick="selectAdminPoc('${p.poc_id}')">
+    <div class="pr-row">
+      <div class="pr-av">${init}</div>
+      <div class="pr-info">
+        <div class="pr-name">${p.customer_name}</div>
+        <div class="pr-meta">${p.poc_id} · ${p.se_name||p.se_email||''}${p.product_family?' · '+p.product_family:''}</div>
+        ${p.last_accessed_at?`<div style="font-size:10px;color:var(--pg-text3);margin-top:1px">Customer last seen: ${relTime(p.last_accessed_at)}</div>`:''}
+      </div>
+      <div class="pr-right">
+        <div class="pr-bar"><div class="pr-barf" style="width:${pct}%"></div></div>
+        <span class="pr-pct">${pct}%</span>
+        ${(p.customer_note_count||0)>0?`<span style="background:#F59E0B;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700" title="Customer notes">${p.customer_note_count} &#x1F4AC;</span>`:''}
+        <span class="days-pill ${daysClass}">${blocked?'Blocked':daysLeft+'d'}</span>
+        ${statusBadge}
+      </div>
+    </div>
+    ${qaStrip}
+  </div>`;
+}
+
+function adminBlockConfirm(pocId){_adminBlockConfirm=pocId;renderPocList();}
+function renderAdminBlockConfirm(p){
+  return `<div style="background:var(--pg-danger-bg);border:0.5px solid var(--pg-danger-border);border-radius:8px;padding:10px 12px;margin:0 12px 8px;display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--pg-danger-text);flex:1">Block access for <strong>${p.customer_name}</strong>? Customer link stops working immediately.</span>
+    <button style="font-size:11px;padding:5px 12px;border:0.5px solid var(--pg-border);border-radius:6px;color:var(--pg-text2);background:transparent;cursor:pointer" onclick="event.stopPropagation();_adminBlockConfirm=null;renderPocList()">Cancel</button>
+    <button style="font-size:11px;font-weight:600;padding:5px 12px;background:#EF4444;color:#fff;border:none;border-radius:6px;cursor:pointer" onclick="event.stopPropagation();blockPoc('${p.poc_id}')">Yes, block</button>
+  </div>`;
+}
+
+async function selectAdminPoc(pocId){
+  if(selectedAdminPoc===pocId){selectedAdminPoc=null;_adminBlockConfirm=null;closeAdminNotesPane();document.getElementById('admin-detail-pane').style.display='none';renderPocList();return;}
+  selectedAdminPoc=pocId;_adminBlockConfirm=null;
+  closeAdminNotesPane(); // always reset notes pane on POC switch
+  const _adp=document.getElementById('admin-detail-pane');
+  _adp.style.display='block';
+  if(window.innerWidth<=768) requestAnimationFrame(()=>_adp.classList.add('mobile-open'));
+  renderPocList();
+  renderAdminDetailPanel(pocId);
+  try{
+    const res=await fetch(API+'/api/pocs/'+pocId+'/progress',{headers:hdr()});
+    if(res.ok){_adminProgress[pocId]=await res.json();renderAdminDetailPanel(pocId);}
+  }catch(e){}
+}
+
+function renderAdminDetailPanel(pocId){
+  const p=pocs.find(x=>x.poc_id===pocId);
+  const el=document.getElementById('admin-detail-pane');
+  if(!p||!el) return;
+  const daysLeft=Math.max(0,Math.round((new Date(p.end_date)-new Date())/86400000));
+  const prog=_adminProgress[pocId]||_progress[pocId]||[];
+  const weekRows=prog.length
+    ? prog.map((w,i)=>{
+        const pct=w.total>0?Math.round(w.done/w.total*100):0;
+        const nc=w.signoff?'adp-wdone':w.done>0?'adp-wact':'adp-wlk';
+        const nl=w.signoff?'&#10003;':(i+1);
+        const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id)||{groups:[]};
+        const grpState=(_groupState[pocId]||{})[w.week_id]||[];
+        const bodyOpen=_adminOpenWkSec[pocId+'_'+w.week_id]?'open':'';
+        const adminPocNotes=_adminCustomerNotes[pocId]||[];
+        const grpRows=struct.groups.map((g,gi)=>{
+          const gd=grpState[gi]||0;const gt=g.count;const gp=gt>0?Math.round(gd/gt*100):0;
+          const gc=gd===gt&&gt>0?'#01A982':gd>0?'#D97706':'var(--pg-text3)';
+          const secNotes=adminPocNotes.filter(n=>n.section_id===g.id);
+          const hasNote=secNotes.length>0;
+          const dotHtml=hasNote?`<div class="amber-dot" title="${secNotes.length} customer note${secNotes.length>1?'s':''}"></div>`:'';
+          const rowCls='adp-week-grp'+(hasNote?' has-note':'');
+          const clickAttr=hasNote?`onclick="event.stopPropagation();toggleAdminSectionNotes('${pocId}','${g.id||gi}','${(g.name||'').replace(/'/g,String.fromCharCode(39))}')"`:'' ;
+          return `<div class="${rowCls}" id="agrpr-${pocId}-${g.id||gi}" ${clickAttr}>
+            <span class="adp-week-grp-name">${g.name}</span>
+            ${dotHtml}
+            <span class="adp-week-grp-ct" style="color:${gc}">${gd}/${gt}${gd===gt&&gt>0?' &#10003;':''}</span>
+            <div class="adp-week-grp-bar"><div class="adp-week-grp-barf" style="width:${gp}%"></div></div>
+          </div>`;}).join('');
+        const weekHasNotes = adminPocNotes.some(n => n.week_id === w.week_id);
+        const wkDot = weekHasNotes ? '<div class="amber-dot" title="Has customer notes" style="margin-right:2px"></div>' : '';
+        return `<div class="adp-week" onclick="toggleAdminWk('${pocId}','${w.week_id}')" style="cursor:pointer">
+          <div class="adp-week-hdr">
+            <div class="adp-wnum ${nc}">${nl}</div>
+            <div style="flex:1;font-size:11px;font-weight:500;color:var(--pg-text)">${struct.label||'Week '+(i+1)}</div>
+            ${wkDot}
+            ${w.signoff?`<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:var(--pg-hpe-bg);color:var(--pg-hpe-text)">Signed off</span>`
+            :`<span style="font-size:11px;font-weight:600;color:${pct>0?'#01A982':'var(--pg-text3)'}">${pct}%</span>
+            <button onclick="event.stopPropagation();adminSignoffWeek('${pocId}','${w.week_id}',this)" style="font-size:9px;padding:1px 6px;border:0.5px solid var(--pg-border);border-radius:5px;background:none;cursor:pointer;color:var(--pg-text3);margin-left:2px" title="Admin sign-off this week">Sign off</button>`}
+            <span id="awchev-${pocId}-${w.week_id}" style="font-size:10px;color:var(--pg-text3)">${bodyOpen?'&#9650;':'&#9660;'}</span>
+          </div>
+          <div class="adp-week-body ${bodyOpen}" id="awbody-${pocId}-${w.week_id}">${grpRows}</div>
+        </div>`;}).join('')
+    : [1,2,3,4,5].map(i=>`<div class="adp-week"><div class="adp-week-hdr" style="cursor:default"><div class="adp-wnum adp-wlk">${i}</div><div style="flex:1;font-size:11px;color:var(--pg-text3)">Loading…</div></div></div>`).join('');
+
+  const ssColor=p.smartsheet_status==='Approved'?'#01A982':p.smartsheet_status==='Extended'?'#D97706':'#EF4444';
+
+  el.innerHTML=`
+    <button class="mobile-back-btn" onclick="closeMobileAdminDetail()">← Back to list</button>
+    <div class="adp-hdr" style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div>
+        <div class="adp-title">${p.customer_name}</div>
+        <div class="adp-sub">${p.poc_id} · ${daysLeft}d left · ${p.progress_pct||0}% · SE: ${p.se_name||p.se_email||''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <button onclick="exportAdminPocPDF('${pocId}')" style="font-size:11px;padding:4px 10px;border:0.5px solid var(--pg-border);border-radius:6px;background:var(--pg-surface);cursor:pointer;color:var(--pg-text2)" title="Export PDF">Export PDF</button>
+        <button style="font-size:12px;color:var(--pg-text3);cursor:pointer;padding:4px 8px;border-radius:5px;border:0.5px solid var(--pg-border);background:transparent" onclick="closeMobileAdminDetail();renderPocList()">✕</button>
+      </div>
+    </div>
+    <div class="adp-body">
+      <div class="adp-sec">
+        <div class="adp-sec-t">Smartsheet</div>
+        <div class="adp-grid">
+          <div class="adp-cell"><div class="adp-ck">Status</div><div class="adp-cv" style="color:${ssColor}">${p.smartsheet_status||'—'}</div></div>
+          <div class="adp-cell"><div class="adp-ck">Product</div><div class="adp-cv">${p.product_family||'—'}</div></div>
+          <div class="adp-cell"><div class="adp-ck">Start date</div><div class="adp-cv">${p.start_date}</div></div>
+          <div class="adp-cell"><div class="adp-ck">End date</div><div class="adp-cv">${p.end_date}</div></div>
+          <div class="adp-cell"><div class="adp-ck">Last synced from SS</div><div class="adp-cv">${p.last_synced_at?new Date(p.last_synced_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'Never'}</div></div>
+          <div class="adp-cell"><div class="adp-ck">Last pushed to SS</div><div class="adp-cv">${p.last_pushed_at?new Date(p.last_pushed_at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'Never'}</div></div>
+        </div>
+      </div>
+      ${p.contact_name?`<div class="adp-sec">
+        <div class="adp-sec-t">Customer</div>
+        <div class="adp-grid">
+          <div class="adp-cell"><div class="adp-ck">Contact</div><div class="adp-cv">${p.contact_name||'—'}</div></div>
+          <div class="adp-cell"><div class="adp-ck">Region</div><div class="adp-cv">${p.sub_region||'—'}</div></div>
+        </div>
+      </div>`:''}
+      <div class="adp-sec">
+        <div class="adp-sec-t">Week progress</div>
+        ${weekRows}
+      </div>
+      <div class="adp-sec">
+        <div class="adp-sec-t">Modules <span style="font-weight:400;font-size:10px;color:var(--pg-text3)">— admin can enable/disable optional content</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${['hvm','hks','terraform','ansible'].map(m=>{
+            const on=(p.modules||{})[m];
+            return '<label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;cursor:pointer;padding:4px 10px;border:0.5px solid var(--pg-border);border-radius:8px;background:'+(on?'var(--pg-hpe-bg)':'var(--pg-surface)')+'"><input type=\"checkbox\" '+(on?'checked':'')+' onchange=\"updateModule(\'' + p.poc_id + '\',\'' + m + '\',this.checked)\" style=\"accent-color:#01A982\">&nbsp;'+m.toUpperCase()+'</label>';
+          }).join('')}
+        </div>
+      </div>
+      <div class="adp-sec">
+        <div class="adp-sec-t">Admin actions</div>
+        <div class="adp-actions">
+          <button class="adp-action-btn primary" onclick="copyAdminStatus('${p.poc_id}')">Copy full status</button>
+          <button class="adp-action-btn" onclick="navigator.clipboard.writeText(window.location.origin+'/poc/${p.access_token}').then(()=>showToast('Copied'))">Copy URL</button>
+          ${p.force_blocked
+            ?`<button class="adp-action-btn" onclick="unblockPoc('${p.poc_id}')">Restore access</button>`
+            :`<button class="adp-action-btn danger" onclick="adminBlockConfirm('${p.poc_id}')">Block access</button>`}
+          ${p.admin_override
+            ?`<button class="adp-action-btn" onclick="revokeOverride('${p.poc_id}')">Revoke override</button>`
+            :`<button class="adp-action-btn" style="border-color:#C4B5FD;color:#5B21B6" onclick="overridePoc('${p.poc_id}')">Override</button>`}
+          ${p.status==='completion_requested'
+            ?`<button class="adp-action-btn primary" onclick="adminCompletePoc('${p.poc_id}')">Complete POC</button>`
+            :p.status==='completed'
+            ?`<button class="adp-action-btn" onclick="adminReopenPoc('${p.poc_id}')">Reopen POC</button>`
+            :p.progress_pct>=100||p.status==='completion_requested'
+            ?`<button class="adp-action-btn primary" onclick="adminCompletePoc('${p.poc_id}')">Complete POC</button>`
+            :''}
+          <button class="adp-action-btn" onclick="adminReassignPoc('${p.poc_id}')">Reassign SE</button>
+          <button class="adp-action-btn" onclick="adminExtendPoc('${p.poc_id}')">Extend</button>
+          <button class="adp-action-btn danger" style="margin-left:auto" onclick="deletePoc('${p.poc_id}','${p.customer_name.replace(/'/g,'')}')">Delete POC</button>
+        </div>
+      </div>
+    </div>`;
+  if (!_adminCustomerNotes[p.poc_id]) { loadAdminCustomerNotes(p.poc_id); } else { updateAdminAmberDots(p.poc_id); }
+}
+
+const _adminCustomerNotes = {};
+let _activeAdminNoteSection = null;
+
+function updateAdminAmberDots(pocId) {
+  const notes = _adminCustomerNotes[pocId] || [];
+  WEEK_STRUCTURE.forEach(w => {
+    w.groups.forEach(g => {
+      const rowEl = document.getElementById('agrpr-' + pocId + '-' + (g.id||''));
+      if (!rowEl) return;
+      const secNotes = notes.filter(n => n.section_id === g.id);
+      if (secNotes.length > 0 && !rowEl.querySelector('.amber-dot')) {
+        rowEl.classList.add('has-note');
+        const gid = g.id; const gname = g.name;
+        rowEl.onclick = function(){ toggleAdminSectionNotes(pocId, gid, gname); };
+        const ct = rowEl.querySelector('.adp-week-grp-ct');
+        if (ct) {
+          const dot = document.createElement('div');
+          dot.className = 'amber-dot';
+          dot.title = secNotes.length + ' customer note' + (secNotes.length > 1 ? 's' : '');
+          rowEl.insertBefore(dot, ct);
+        }
+      }
+    });
+  });
+}
+
+function relTime(d){if(!d)return '';const dt=new Date(d),now=new Date(),s=Math.floor((now-dt)/1000);if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';if(s<172800)return 'yesterday';return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}
+function renderAdminTimelineNotes(notes, activeSec, scrollEl) {
+  if (!notes || !notes.length) {
+    scrollEl.innerHTML = '<div class="anp-empty" style="padding:20px;text-align:center;font-size:11px;color:var(--pg-text3)">No customer notes for this selection.</div>';
+    return;
+  }
+  // Group by week → section
+  const wkOrder = WEEK_STRUCTURE.map(w => w.week_id || w.id);
+  const byWeek = {};
+  notes.forEach(n => {
+    const wid = n.week_id || 'week1';
+    if (!byWeek[wid]) byWeek[wid] = {};
+    const sid = n.section_id || '__sec';
+    if (!byWeek[wid][sid]) byWeek[wid][sid] = {title: n.section_title || sid, notes: []};
+    byWeek[wid][sid].notes.push(n);
+  });
+  let h = '';
+  wkOrder.forEach((wid, wi) => {
+    const wSecs = byWeek[wid];
+    if (!wSecs) return;
+    h += `<div class="ntl-wk">
+      <div class="ntl-wk-hdr">
+        <div class="ntl-wk-num">W${wi+1}</div>
+        <span class="ntl-wk-lbl">Week ${wi+1}</span>
+      </div>`;
+
+
+      // Sort sections by curriculum position in WEEK_STRUCTURE
+      const _wkStruct = WEEK_STRUCTURE[wi] || WEEK_STRUCTURE.find(w => (w.id||w.week_id) === wid);
+      const _grpOrder = _wkStruct ? (_wkStruct.groups||[]).map(g => g.id) : [];
+      const sortedSecs = Object.entries(wSecs).sort(([a],[b]) => {
+        const ai = _grpOrder.indexOf(a), bi = _grpOrder.indexOf(b);
+        if (ai === -1 && bi === -1) return 0;
+        if (ai === -1) return 1; if (bi === -1) return -1;
+        return ai - bi;
+      });
+    sortedSecs.forEach(([sid, sec]) => {
+      // Section pill
+      h += `<div class="ntl-sec">
+        ${(sec.title && sec.title !== '__sec') ? `<div style="display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:8px;background:rgba(1,169,130,.1);color:var(--pg-hpe-text);margin-bottom:5px"><span style="width:5px;height:5px;border-radius:50%;background:#F59E0B;display:inline-block"></span>${sec.title}</div>` : ''}`;
+      const byItem = {};
+      sec.notes.forEach(n => {
+        const ikey = n.item_id || '__';
+        if (!byItem[ikey]) byItem[ikey] = {title: n.item_title || '', notes: []};
+        byItem[ikey].notes.push(n);
+      });
+      Object.entries(byItem).forEach(([iid, item]) => {
+        if (item.title) h += `<div style="font-size:9px;font-weight:600;color:var(--pg-text2);padding:1px 7px 3px;margin-bottom:2px;border-left:2px solid var(--pg-border2)">${item.title}</div>`;
+        item.notes.forEach(n => {
+          const dt = relTime(n.created_at);
+          const safe = (n.note||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          const ack = n.acknowledged_at;
+          // Customer note card — amber border, green when seen
+          h += `<div style="background:var(--pg-surface2);border-radius:7px;padding:7px 10px;margin-bottom:3px;border-left:3px solid ${ack?'#01A982':'#F59E0B'}">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+              <span style="font-size:9px;font-weight:700;color:var(--pg-text3)">${dt}</span>
+              ${ack?'<span style="font-size:8px;font-weight:700;color:#01A982">✓ Seen</span>':'<span style="font-size:8px;color:#F59E0B;font-weight:700">● New</span>'}
+            </div>
+            <div style="font-size:11px;color:var(--pg-text);line-height:1.5">${safe}</div>
+          </div>`;
+          // SE reply — green indented block
+          if (n.se_reply) {
+            const safeReply = n.se_reply.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            h += `<div style="margin:2px 0 6px 10px;padding:6px 9px;background:rgba(1,169,130,.07);border-left:2px solid #01A982;border-radius:0 5px 5px 0">
+              <div style="font-size:9px;font-weight:700;color:#01A982;margin-bottom:2px">↳ HPE SE replied${n.se_reply_at?' · '+relTime(n.se_reply_at):''}</div>
+              <div style="font-size:10px;color:var(--pg-text);line-height:1.5">${safeReply}</div>
+            </div>`;
+          }
+        });
+      });
+      h += '</div>';
+    });
+    h += '</div>';
+  });
+  scrollEl.innerHTML = h || '<div class="anp-empty">No notes yet.</div>';
+}
+
+function toggleAdminSectionNotes(pocId, secId, secName) {
+  const panel = document.getElementById('admin-notes-pane');
+  const scroll = document.getElementById('anp-scroll');
+  const titleEl = document.getElementById('anp-title');
+  document.querySelectorAll('.adp-week-grp').forEach(r => r.classList.remove('grp-note-sel'));
+  // Toggle off if same section clicked again
+  if (_activeAdminNoteSection === secId && panel && panel.classList.contains('open')) {
+    _activeAdminNoteSection = null;
+    panel.classList.remove('open');
+    return;
+  }
+  _activeAdminNoteSection = secId;
+  const rowEl = document.getElementById('agrpr-' + pocId + '-' + secId);
+  if (rowEl) rowEl.classList.add('grp-note-sel');
+  // Filter notes to this section only
+  const allNotes = _adminCustomerNotes[pocId] || [];
+  const sectionNotes = allNotes.filter(n => n.section_id === secId);
+  if (titleEl) titleEl.textContent = secName || 'Section notes';
+  if (scroll) renderAdminTimelineNotes(sectionNotes, null, scroll);
+  if (panel) {
+    panel.classList.add('open');
+    const h=document.getElementById('admin-notes-handle');
+    if(h) h.classList.add('visible');
+  }
+}
+
+function closeAdminNotesPane() {
+  _activeAdminNoteSection = null;
+  document.querySelectorAll('.adp-week-grp').forEach(r => r.classList.remove('grp-note-sel'));
+  const panel = document.getElementById('admin-notes-pane');
+  if (panel) panel.classList.remove('open');
+  const h=document.getElementById('admin-notes-handle');
+  if(h) h.classList.remove('visible');
+}
+
+async function loadAdminCustomerNotes(pocId) {
+  try {
+    const res = await fetch(API+'/api/admin/customer-notes?poc_id='+encodeURIComponent(pocId), {headers: hdr()});
+    if (!res.ok) return;
+    const notes = await res.json();
+    _adminCustomerNotes[pocId] = notes;
+    updateAdminAmberDots(pocId);
+  } catch(e) {}
+}
+
+const _adminOpenWkSec={};
+function toggleAdminWk(pocId,weekId){
+  const key=pocId+'_'+weekId;
+  _adminOpenWkSec[key]=!_adminOpenWkSec[key];
+  const bodyEl=document.getElementById('awbody-'+pocId+'-'+weekId);
+  const chevEl=document.getElementById('awchev-'+pocId+'-'+weekId);
+  if(bodyEl) bodyEl.classList.toggle('open',!!_adminOpenWkSec[key]);
+  if(chevEl) chevEl.textContent=_adminOpenWkSec[key]?'▲':'▼';
+  // Auto-filter admin notes pane to this week — load notes first if needed
+  const _wkFilter = _adminOpenWkSec[key] ? weekId : null;
+  if (_wkFilter && !_adminCustomerNotes[pocId]) {
+    loadAdminCustomerNotes(pocId).then(() => filterAdminNotesPane(pocId, _wkFilter));
+  } else {
+    filterAdminNotesPane(pocId, _wkFilter);
+  }
+}
+
+function filterAdminNotesPane(pocId, weekId) {
+  const notes = _adminCustomerNotes[pocId];
+  if (!notes) return;
+  const scroll = document.getElementById('anp-scroll');   // correct admin scroll ID
+  const titleEl = document.getElementById('anp-title');   // correct admin title ID
+  const pane = document.getElementById('admin-notes-pane');
+  const filtered = weekId ? notes.filter(n => n.week_id === weekId) : notes;
+  if (titleEl) {
+    if (weekId) {
+      const ws = WEEK_STRUCTURE.find(w => w.id === weekId);
+      titleEl.textContent = ws ? ws.label + ' notes' : 'Customer notes';
+    } else {
+      titleEl.textContent = 'Customer notes';
+    }
+  }
+  if (!scroll) return;
+  if (weekId) {
+    // Open pane and show filtered notes (even if empty — open so user can see "no notes")
+    if (pane) pane.classList.add('open');
+    _activeAdminNoteSection = null;
+    renderAdminTimelineNotes(filtered.length ? filtered : [], null, scroll);  // correct admin render fn
+  } else if (pane && pane.classList.contains('open')) {
+    renderAdminTimelineNotes(notes, _activeAdminNoteSection, scroll);
+  }
+}
+
+// Fix blockPoc/unblockPoc in admin context
+async function blockPoc(id){
+  await fetch(API+'/api/admin/pocs/'+id+'/block',{method:'PUT',headers:hdr()});
+  _adminBlockConfirm=null;showToast('Access blocked');await loadPocs();
+  if(selectedAdminPoc===id) renderAdminDetailPanel(id);
+}
+async function unblockPoc(id){
+  await fetch(API+'/api/admin/pocs/'+id+'/unblock',{method:'PUT',headers:hdr()});
+  showToast('Access restored');await loadPocs();
+  if(selectedAdminPoc===id) renderAdminDetailPanel(id);
+}
+
+// Init admin resizable pane
+
+function closeMobileAdminDetail(){
+  const el=document.getElementById('admin-detail-pane');
+  if(window.innerWidth<=768){
+    el.classList.remove('mobile-open');
+    setTimeout(()=>{
+      if(!el.classList.contains('mobile-open')) el.style.display='none';
+    },260);
+  } else {
+    el.style.display='none';
+  }
+  selectedAdminPoc=null;
+  renderPocList();
+}
+function initAdminResizable(){
+  const handle=document.getElementById('admin-pane-handle');
+  const listPane=document.getElementById('admin-list-pane');
+  const container=listPane?.parentElement;
+  if(!handle||!listPane||!container) return;
+  if(window.innerWidth<=768){return;}
+  const savedRatio=parseFloat(localStorage.getItem('admin_split_ratio')||'0.35');
+  listPane.style.flex='0 0 '+Math.round(savedRatio*100)+'%';
+  listPane.style.width='';
+  let isDragging=false,startX=0,startRatio=0;
+  function startDrag(clientX){
+    isDragging=true;startX=clientX;
+    startRatio=listPane.offsetWidth/container.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor='col-resize';document.body.style.userSelect='none';
+  }
+  function doDrag(clientX){
+    if(!isDragging) return;
+    const delta=clientX-startX;
+    const newRatio=Math.min(0.70,Math.max(0.20,startRatio+delta/container.offsetWidth));
+    listPane.style.flex='0 0 '+Math.round(newRatio*100)+'%';
+    listPane.style.width='';
+  }
+  function endDrag(){
+    if(!isDragging) return;
+    isDragging=false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor='';document.body.style.userSelect='';
+    const ratio=listPane.offsetWidth/container.offsetWidth;
+    localStorage.setItem('admin_split_ratio',ratio.toFixed(3));
+  }
+  handle.addEventListener('mousedown',e=>{startDrag(e.clientX);e.preventDefault();});
+  document.addEventListener('mousemove',e=>{doDrag(e.clientX);});
+  document.addEventListener('mouseup',endDrag);
+  handle.addEventListener('touchstart',e=>{startDrag(e.touches[0].clientX);e.preventDefault();},{passive:false});
+  document.addEventListener('touchmove',e=>{if(isDragging){doDrag(e.touches[0].clientX);e.preventDefault();}},{passive:false});
+  document.addEventListener('touchend',endDrag);
+  window.addEventListener('resize',()=>{
+    if(window.innerWidth<=768) return;
+    const r=parseFloat(localStorage.getItem('admin_split_ratio')||'0.35');
+    listPane.style.flex='0 0 '+Math.round(r*100)+'%';
+    listPane.style.width='';
+  });
+}
+function setPocFilter(el){document.querySelectorAll('.fchip[data-filter]').forEach(c=>c.classList.remove('active'));el.classList.add('active');activeFilter=el.dataset.filter;renderPocList();}
+async function loadPocs(){
+  const role=document.getElementById('filter-poc-role').value;
+  let url=API+'/api/admin/pocs?';if(role)url+='role='+role+'&';
+  try{
+    const res=await fetch(url,{headers:hdr()});
+    pocs=await res.json();
+    renderAdminSummaryStrip();
+    renderPocList();
+  }catch(e){}
+}
+function renderAdminWeekRow(pocId,w,i){
+  const isOpen=(openWeeks[pocId]||new Set()).has(w.week_id);
+  const numCls=w.signoff?'wkn-done':w.done>0?'wkn-prog':'wkn-nil';
+  const blkCls=w.signoff?'wk-done':w.done>0?'wk-prog':'';
+  let body='';
+  if(isOpen){
+    const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id);
+    const groups=(_groupState[pocId]||{})[w.week_id];
+    if(struct)body=struct.groups.map((g,gi)=>{const gd=groups?groups[gi]:null;const txt=gd!==null&&gd!==undefined?`${gd}/${g.count}`:`—/${g.count}`;const pct=gd&&g.count>0?Math.round(gd/g.count*100):0;return `<div class="grp-row"><div class="grp-header"><div class="grp-name">${g.name}</div><div class="grp-count">${txt}</div></div><div class="grp-bar"><div class="grp-bar-f" style="width:${pct}%"></div></div></div>`;}).join('');
+    const btnId=`cwbtn_${pocId}_${w.week_id}`;
+    body+=`<div class="week-footer"><div class="wf-meta">${w.done}/${w.total} items${w.signoff?' · <strong>Signed off</strong>':''}</div><button class="btn-copy-wk" id="${btnId}" onclick="adminCopyWeek('${pocId}','${w.week_id}','${btnId}')">Copy week status</button></div>`;
+  }
+  return `<div class="week-block ${blkCls}"><div class="week-header" onclick="toggleAdminWeek('${pocId}','${w.week_id}')"><div class="wk-num ${numCls}">${w.signoff?'✓':(i+1)}</div><div class="wk-label">${w.label}</div><div class="wk-right">${w.signoff?'<span class="wk-so">Signed off</span>':''}<span class="wk-pct ${w.pct===100?'pct-g':'pct-dim'}">${w.pct}%</span><div class="wk-bar"><div class="wk-bar-f" style="width:${w.pct}%"></div></div><span class="wk-chev${isOpen?' open':''}">&#8964;</span></div></div><div class="week-body${isOpen?' open':''}">${body}</div></div>`;
+}
+
+function cp(url){navigator.clipboard.writeText(url).then(()=>showToast('URL copied'));}
+
+async function toggleAdminPoc(pocId){
+  if(openPocs.has(pocId)){openPocs.delete(pocId);renderPocList();return;}
+  openPocs.add(pocId);if(!openWeeks[pocId])openWeeks[pocId]=new Set();
+  renderPocList();await loadAdminProgress(pocId);renderPocList();
+}
+async function loadAdminProgress(pocId){
+  try{const res=await fetch(API+'/api/pocs/'+pocId+'/progress',{headers:hdr()});if(res.ok)_progress[pocId]=await res.json();}catch(e){}
+}
+async function toggleAdminWeek(pocId,weekId){
+  if(!openWeeks[pocId])openWeeks[pocId]=new Set();
+  const wkSet=openWeeks[pocId];
+  if(wkSet.has(weekId)){wkSet.delete(weekId);renderPocList();return;}
+  wkSet.add(weekId);renderPocList();
+  if(!(_groupState[pocId]&&_groupState[pocId][weekId])){
+    try{const res=await fetch(API+'/api/admin/pocs/'+pocId+'/state',{headers:hdr()});if(res.ok){const all=await res.json();if(!_groupState[pocId])_groupState[pocId]={};all.forEach(ws=>{const struct=WEEK_STRUCTURE.find(s=>s.id===ws.week_id);if(!struct)return;const chks=ws.checks||{};
+      if(typeof chks==='object'&&!Array.isArray(chks)){
+        _groupState[pocId][ws.week_id]=struct.groups.map(g=>(g.items||[]).filter(id=>chks[id]===true).length);
+      }else{let off=0;_groupState[pocId][ws.week_id]=struct.groups.map(g=>{const sl=Array.isArray(chks)?chks.slice(off,off+g.count):[];off+=g.count;return sl.filter(Boolean).length;});}});}}catch(e){}
+  }
+  renderPocList();
+}
+async function adminCopyFull(pocId){
+  const poc=pocs.find(p=>p.poc_id===pocId);if(!poc)return;
+  await loadAdminProgress(pocId);
+  const prog=_progress[pocId]||[];
+  if(prog.some(w=>w.done>0)&&!_groupState[pocId]){try{const res=await fetch(API+'/api/admin/pocs/'+pocId+'/state',{headers:hdr()});if(res.ok){const all=await res.json();_groupState[pocId]={};all.forEach(ws=>{const struct=WEEK_STRUCTURE.find(s=>s.id===ws.week_id);if(!struct)return;const chks=ws.checks||{};
+      if(typeof chks==='object'&&!Array.isArray(chks)){
+        _groupState[pocId][ws.week_id]=struct.groups.map(g=>(g.items||[]).filter(id=>chks[id]===true).length);
+      }else{let off=0;_groupState[pocId][ws.week_id]=struct.groups.map(g=>{const sl=Array.isArray(chks)?chks.slice(off,off+g.count):[];off+=g.count;return sl.filter(Boolean).length;});}});}}catch(e){}}
+  const today=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const pct=poc.progress_pct||0,done=poc.progress_done||0,tot=poc.progress_total||0;
+  const so=(prog||[]).filter(w=>w.signoff).length;
+  const lines=[`POC Status Update — ${poc.customer_name} (${poc.poc_id})`,`Updated: ${today}  |  SE: ${poc.se_email}`,``,`Overall: ${done}/${tot} items complete (${pct}%) | Weeks signed off: ${so}/5`,``];
+  (prog||[]).forEach(w=>{if(w.signoff||w.pct===100){lines.push(`${w.label}: ${w.done}/${w.total} (${w.pct}%)${w.signoff?' ✓ SIGNED OFF':''}`);}else if(w.done>0){lines.push(`${w.label}: ${w.done}/${w.total} (${w.pct}%)`);const gs=(_groupState[poc.poc_id]||{})[w.week_id];const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id);if(gs&&struct)struct.groups.forEach((g,gi)=>{const gd=gs[gi]||0;lines.push(`  ${gd>0?'✓':'○'} ${g.name}: ${gd}/${g.count}`);});}else{lines.push(`${w.label}: Not started`);}});
+  const btnId='bcf_'+pocId;
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>{const btn=document.getElementById(btnId);if(btn){btn.textContent='✓ Copied!';btn.classList.add('copied');}showToast('Full status copied — paste into Smartsheet');setTimeout(()=>{if(btn){btn.textContent='Copy full status';btn.classList.remove('copied');}},2500);});
+}const copyAdminStatus = adminCopyFull;
+
+function adminCopyWeek(pocId,weekId,btnId){
+  const prog=_progress[pocId]||[];const w=prog.find(x=>x.week_id===weekId);if(!w)return;
+  const today=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const lines=[`${w.label}: ${w.done}/${w.total} (${w.pct}%)${w.signoff?' ✓ SIGNED OFF':''}`,`Updated: ${today}`,``];
+  const gs=(_groupState[pocId]||{})[w.week_id];const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id);
+  if(gs&&struct)struct.groups.forEach((g,gi)=>{const gd=gs[gi]||0;lines.push(`${gd>0?'✓':'○'} ${g.name}: ${gd}/${g.count}`);});
+  if(w.signoff)lines.push('','Customer has signed off this week.');
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>{const btn=document.getElementById(btnId);if(btn){btn.textContent='✓ Copied!';btn.classList.add('copied');}showToast('Week status copied');setTimeout(()=>{if(btn){btn.textContent='Copy week status';btn.classList.remove('copied');}},2500);});
+}
+async function adminBlock(id){await fetch(API+'/api/admin/pocs/'+id+'/block',{method:'PUT',headers:hdr()});showToast('POC blocked');await loadPocs();}
+async function adminUnblock(id){await fetch(API+'/api/admin/pocs/'+id+'/unblock',{method:'PUT',headers:hdr()});showToast('POC unblocked');await loadPocs();}
+async function adminOverride(id){await fetch(API+'/api/admin/pocs/'+id+'/override',{method:'PUT',headers:hdr()});showToast('Override active');await loadPocs();}
+async function adminRevokeOverride(id){await fetch(API+'/api/admin/pocs/'+id+'/revoke-override',{method:'PUT',headers:hdr()});showToast('Override removed');await loadPocs();}
+async function deletePoc(pocId,name){
+  _pendingDeletePocId=pocId;
+  document.getElementById('delete-poc-modal-sub').textContent='Delete POC for "'+name+'"?';
+  document.getElementById('delete-poc-modal').style.display='flex';
+}
+function closeDeleteModal(){
+  _pendingDeletePocId=null;
+  document.getElementById('delete-poc-modal').style.display='none';
+}
+async function confirmDeletePoc(){
+  if(!_pendingDeletePocId)return;
+  const pocId=_pendingDeletePocId;
+  closeDeleteModal();
+  try{
+    const res=await fetch(API+'/api/admin/pocs/'+pocId,{method:'DELETE',headers:hdr()});
+    if(!res.ok){const d=await res.json();showToast(d.detail||'Delete failed');return;}
+    selectedAdminPoc=null;
+    document.getElementById('admin-detail-pane').style.display='none';
+    showToast('POC deleted: '+pocId);
+    await loadPocs();
+  }catch(e){showToast('Connection error');}
+}
+let _pendingDeletePocId=null;
+
+// Apply saved theme on load
+
+
+async function updateModule(pocId, mod, val){
+  const mods = {};
+  ['hvm','hks','terraform','ansible'].forEach(m=>{
+    const el=document.querySelector(`input[onchange*="'${pocId}','${m}'"]`);
+    mods[m]=el?el.checked:false;
+  });
+  mods[mod]=val;
+  await fetch(API+'/api/admin/pocs/'+pocId+'/modules',{method:'PUT',headers:hdr(),body:JSON.stringify({modules:mods})});
+  showToast('Modules updated');
+}
+
+async function loadAnalytics(){
+  const body=document.getElementById('analytics-body');
+  if(!body)return;
+  body.innerHTML='<div style="text-align:center;padding:40px;color:var(--pg-text3)">Loading…</div>';
+  try{
+    const r=await fetch(API+'/api/admin/analytics',{headers:hdr()});
+    if(!r.ok){body.innerHTML='<div style="padding:20px;color:#EF4444">Failed to load analytics.</div>';return;}
+    const d=await r.json();
+    renderAnalytics(d,body);
+  }catch(e){body.innerHTML='<div style="padding:20px;color:#EF4444">Error loading analytics.</div>';}
+}
+
+function renderAnalytics(d, body) {
+  const bs = d.by_status || {};
+  const act = bs.active || 0, comp = bs.completed || 0, exp = bs.expired || 0, blk = bs.blocked || 0;
+  const total = d.total || 0;
+  const ws = d.week_signoffs || {};
+  const bands = d.progress_bands || {};
+  const pocs = d.pocs || [];
+  const seStats = d.se_stats || [];
+  const maxBand = Math.max(...Object.values(bands), 1);
+  const engaged = d.engaged_7d || 0;
+  const now = new Date();
+
+  // ── Health alerts ──────────────────────────────────────────
+  const alerts = [];
+  pocs.forEach(p => {
+    const lastSeen = p.last_accessed_at ? new Date(p.last_accessed_at) : null;
+    const daysStale = lastSeen ? Math.floor((now - lastSeen) / 86400000) : 999;
+    if (p.days_left <= 7 && p.days_left > 0 && p.status !== 'completed')
+      alerts.push({type:'amber', icon:'ti-clock', msg:`<b>${p.customer_name}</b> — expires in ${p.days_left} day${p.days_left===1?'':'s'}`});
+    else if (daysStale >= 7 && p.status === 'active')
+      alerts.push({type:'amber', icon:'ti-user-off', msg:`<b>${p.customer_name}</b> — no customer activity for ${daysStale === 999 ? 'ever' : daysStale + ' days'}`});
+    if (p.pct === 100 && p.status === 'active')
+      alerts.push({type:'green', icon:'ti-check', msg:`<b>${p.customer_name}</b> — 100% complete, ready to mark as done`});
+  });
+  const alertsHtml = alerts.length
+    ? alerts.map(a => `<div style="border-radius:7px;padding:9px 12px;margin-bottom:7px;display:flex;align-items:center;gap:9px;font-size:12px;background:${a.type==='green'?'rgba(1,169,130,.08)':'rgba(245,158,11,.1)'};border:0.5px solid ${a.type==='green'?'#5dcaa5':'#fac775'};color:${a.type==='green'?'#04342c':'#412402'}"><i class="ti ${a.icon}" style="font-size:14px;flex-shrink:0" aria-hidden="true"></i><div>${a.msg}</div></div>`).join('')
+    : `<div style="font-size:12px;color:var(--pg-text3);padding:6px 0">No POCs need immediate attention.</div>`;
+
+  // ── Section builder helpers ────────────────────────────────
+  function statCard(label, val, color) {
+    return `<div style="background:var(--pg-surface2);border-radius:8px;padding:14px 16px;flex:1;min-width:0">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--pg-text3);margin-bottom:6px">${label}</div>
+      <div style="font-size:26px;font-weight:500;color:${color||'var(--pg-text)'}">${val}</div>
+    </div>`;
+  }
+
+  function distBar(label, count) {
+    const w = Math.round(count / maxBand * 100);
+    const color = label.startsWith('75') ? '#01A982' : label.startsWith('50') ? '#1a9ecf' : label.startsWith('25') ? '#f59e0b' : '#e24b4a';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px">
+      <div style="width:52px;text-align:right;color:var(--pg-text2);flex-shrink:0">${label}%</div>
+      <div style="flex:1;background:var(--pg-surface2);border-radius:4px;height:14px;overflow:hidden">
+        <div style="width:${w}%;height:100%;background:${color};border-radius:4px"></div>
+      </div>
+      <div style="width:20px;text-align:right;font-weight:500;color:var(--pg-text);flex-shrink:0">${count}</div>
+    </div>`;
+  }
+
+  function wkBox(n, count, wid) {
+    const color = count > 0 ? '#01A982' : 'var(--pg-text3)';
+    const bg = count > 0 ? 'rgba(1,169,130,.07)' : 'var(--pg-surface2)';
+    return `<div style="border-radius:8px;padding:10px 6px;text-align:center;background:${bg};border:0.5px solid var(--pg-border)">
+      <div style="font-size:10px;font-weight:700;color:var(--pg-text3);margin-bottom:4px">W${n}</div>
+      <div style="font-size:20px;font-weight:500;color:${color}">${count}</div>
+      <div style="font-size:10px;color:var(--pg-text3);margin-top:2px">signed off</div>
+    </div>`;
+  }
+
+  // ── POC table (searchable, sortable, paginated) ────────────
+  let _tableData = [...pocs];
+  let _sortKey = '', _sortAsc = true, _page = 0;
+  const PAGE_SIZE = 10;
+
+  function healthColor(p) {
+    if (p.status === 'blocked') return '#e24b4a';
+    if (p.days_left <= 7 && p.status !== 'completed') return '#f59e0b';
+    if (p.pct >= 75) return '#01A982';
+    if (p.pct > 0) return '#f59e0b';
+    return '#9ca3af';
+  }
+
+  function renderTable() {
+    const start = _page * PAGE_SIZE, end = start + PAGE_SIZE;
+    const slice = _tableData.slice(start, end);
+    const rows = slice.map(p => {
+      const hc = healthColor(p);
+      const progColor = p.pct >= 75 ? '#01A982' : p.pct >= 25 ? '#f59e0b' : '#e24b4a';
+      const seenStr = p.last_accessed_at ? relTime(p.last_accessed_at) : 'Never';
+      const nc = p.customer_note_count || 0;
+      const statusBadge = p.status === 'completed'
+        ? `<span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(1,169,130,.1);color:#04342c">Done</span>`
+        : p.status === 'blocked'
+        ? `<span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(226,75,74,.1);color:#501313">Blocked</span>`
+        : p.days_left <= 7
+        ? `<span class="pr-status" style="background:var(--pg-warn-bg,rgba(245,158,11,.12));color:var(--pg-warn-text,#92400E)">Expiring</span>`
+        : `<span class="pr-status ps-act">Active</span>`;
+      return `<tr style="border-bottom:0.5px solid var(--pg-border)" onmouseover="this.style.background='var(--pg-surface2)'" onmouseout="this.style.background=''">
+        <td style="padding:8px 6px;width:14px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${hc}"></span></td>
+        <td style="padding:8px 6px;font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--pg-text)" title="${p.customer_name}">${p.customer_name}</td>
+        <td style="padding:8px 6px;font-size:11px;color:var(--pg-text2);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.se_email}">${(p.se_name||p.se_email||'').split('@')[0]}</td>
+        <td style="padding:8px 6px">
+          <div style="display:flex;align-items:center;gap:5px">
+            <div style="width:56px;height:5px;border-radius:3px;background:var(--pg-border);overflow:hidden;flex-shrink:0"><div style="width:${p.pct}%;height:100%;background:${progColor};border-radius:3px"></div></div>
+            <span style="font-size:11px;color:var(--pg-text2)">${p.pct}%</span>
+          </div>
+        </td>
+        <td style="padding:8px 6px;font-size:11px;color:var(--pg-text2)">${p.signoff_count||0}/5</td>
+        <td style="padding:8px 6px;font-size:11px;color:${p.days_left<=7?'#ba7517':'var(--pg-text2)'};font-weight:${p.days_left<=7?'600':'400'}">${p.days_left}d</td>
+        <td style="padding:8px 6px;font-size:11px;color:var(--pg-text2)">${seenStr}</td>
+        <td style="padding:8px 6px;font-size:11px;color:${nc>0?'#01A982':'var(--pg-text3)'};font-weight:${nc>0?'600':'400'}">${nc||'—'}</td>
+        <td style="padding:8px 6px">${statusBadge}</td>
+      </tr>`;
+    }).join('');
+    const totalPages = Math.ceil(_tableData.length / PAGE_SIZE);
+    const pgBtns = Array.from({length:totalPages},(_,i)=>`<button onclick="_anPg(${i})" style="padding:3px 8px;border:0.5px solid var(--pg-border);border-radius:5px;background:${i===_page?'var(--pg-surface2)':'none'};cursor:pointer;font-size:11px;color:var(--pg-text);font-weight:${i===_page?'600':'400'}">${i+1}</button>`).join('');
+    document.getElementById('an-tbody').innerHTML = rows || `<tr><td colspan="9" style="padding:16px;text-align:center;font-size:12px;color:var(--pg-text3)">No POCs match the filter.</td></tr>`;
+    document.getElementById('an-pg-info').textContent = `Showing ${Math.min(start+1,_tableData.length)}–${Math.min(end,_tableData.length)} of ${_tableData.length}`;
+    document.getElementById('an-pg-btns').innerHTML = pgBtns;
+  }
+
+  window._anPg = function(p) { _page = p; renderTable(); };
+  window._anSort = function(key) {
+    if (_sortKey === key) _sortAsc = !_sortAsc; else { _sortKey = key; _sortAsc = true; }
+    _tableData.sort((a,b) => _sortAsc ? (a[key]>b[key]?1:-1) : (a[key]<b[key]?1:-1));
+    _page = 0; renderTable();
+  };
+  window._anSearch = function(q) {
+    const lq = q.toLowerCase();
+    _tableData = q ? pocs.filter(p => p.customer_name.toLowerCase().includes(lq) || (p.se_email||'').toLowerCase().includes(lq) || (p.poc_id||'').toLowerCase().includes(lq)) : [...pocs];
+    _page = 0; renderTable();
+  };
+  window._anFilter = function(status, se) {
+    _tableData = pocs.filter(p => {
+      const matchStatus = !status || status === 'all' || p.status === status || (status === 'expiring' && p.days_left <= 7 && p.status !== 'completed');
+      const matchSe = !se || se === 'all' || p.se_email === se;
+      return matchStatus && matchSe;
+    });
+    _page = 0; renderTable();
+  };
+
+  // ── SE options for filter dropdown ────────────────────────
+  const seEmails = [...new Set(pocs.map(p => p.se_email).filter(Boolean))];
+  const seOpts = seEmails.map(e => `<option value="${e}">${e.split('@')[0]}</option>`).join('');
+
+  // ── Render everything ─────────────────────────────────────
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
+      ${statCard('Active', act, '#01A982')}
+      ${statCard('Completed', comp)}
+      ${statCard('Expiring ≤7d', pocs.filter(p=>p.days_left<=7&&p.status!=='completed').length, '#ba7517')}
+      ${statCard('Blocked', blk, '#a32d2d')}
+      ${statCard('Total', total)}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:10px;padding:14px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--pg-text3);margin-bottom:10px">Attention needed</div>
+          ${alertsHtml}
+        </div>
+        <div style="background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:10px;padding:14px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--pg-text3);margin-bottom:10px">Progress distribution</div>
+          ${distBar('75–100', bands['75-100']||0)}
+          ${distBar('50–75', bands['50-75']||0)}
+          ${distBar('25–50', bands['25-50']||0)}
+          ${distBar('0–25', bands['0-25']||0)}
+          <div style="font-size:11px;color:var(--pg-text3);margin-top:8px">Avg across all POCs: <strong>${d.avg_progress||0}%</strong></div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:10px;padding:14px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--pg-text3);margin-bottom:10px">Week sign-off rate</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+            ${[1,2,3,4,5].map(n => wkBox(n, ws[`week${n}`]||0, `week${n}`)).join('')}
+          </div>
+          <div style="font-size:11px;color:var(--pg-text3);margin-top:10px">Customer engagement (7d): <strong>${engaged}/${total}</strong> POCs active</div>
+        </div>
+        <div style="background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:10px;padding:14px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--pg-text3);margin-bottom:10px">SE performance</div>
+          ${seStats.map(s => {
+            const avg = s.total ? Math.round(s.pct_sum / s.total) : 0;
+            return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--pg-border);font-size:12px">
+              <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--pg-text)" title="${s.email}">${(s.name||s.email||'').split('@')[0]}</div>
+              <div style="font-size:11px;color:var(--pg-text3);flex-shrink:0">${s.total} POC${s.total!==1?'s':''}</div>
+              <div style="width:70px;height:5px;border-radius:3px;background:var(--pg-border);overflow:hidden;flex-shrink:0"><div style="width:${avg}%;height:100%;background:#01A982;border-radius:3px"></div></div>
+              <div style="font-size:11px;font-weight:600;color:var(--pg-text);flex-shrink:0;width:30px;text-align:right">${avg}%</div>
+            </div>`;
+          }).join('') || '<div style="font-size:12px;color:var(--pg-text3)">No SE data.</div>'}
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:10px;padding:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--pg-text3)">All POCs at a glance</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select onchange="_anFilter(this.value, document.getElementById('an-se-filter').value)" style="font-size:11px;padding:4px 8px;border:0.5px solid var(--pg-border);border-radius:6px;background:var(--pg-surface);color:var(--pg-text)">
+            <option value="all">All status</option>
+            <option value="active">Active</option>
+            <option value="expiring">Expiring ≤7d</option>
+            <option value="completed">Completed</option>
+            <option value="blocked">Blocked</option>
+          </select>
+          <select id="an-se-filter" onchange="_anFilter(document.querySelector('[onchange*=an-se-filter]').value.replace(/.*'([^']+)'.*/,'$1'), this.value)" style="font-size:11px;padding:4px 8px;border:0.5px solid var(--pg-border);border-radius:6px;background:var(--pg-surface);color:var(--pg-text)">
+            <option value="all">All SEs</option>${seOpts}
+          </select>
+        </div>
+      </div>
+      <input oninput="_anSearch(this.value)" placeholder="Search customer, SE, POC ID…"
+        style="width:100%;margin-bottom:10px;font-size:12px;padding:7px 10px;border:0.5px solid var(--pg-border);border-radius:7px;background:var(--pg-surface2);color:var(--pg-text);outline:none">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+        <thead>
+          <tr style="border-bottom:0.5px solid var(--pg-border)">
+            <th style="width:14px;padding:6px 6px"></th>
+            <th style="width:22%;padding:6px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--pg-text3);text-align:left;cursor:pointer" onclick="_anSort('customer_name')">Customer ⇅</th>
+            <th style="width:16%;padding:6px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--pg-text3);text-align:left;cursor:pointer" onclick="_anSort('se_email')">SE ⇅</th>
+            <th style="width:14%;padding:6px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--pg-text3);text-align:left;cursor:pointer" onclick="_anSort('pct')">Progress ⇅</th>
+            <th style="width:8%;padding:6px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--pg-text3);text-align:left">Weeks</th>
+            <th style="width:9%;padding:6px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--pg-text3);text-align:left;cursor:pointer" onclick="_anSort('days_left')">Days left ⇅</th>
+            <th style="width:10%;padding:6px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--pg-text3);text-align:left">Last seen</th>
+            <th style="width:8%;padding:6px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--pg-text3);text-align:left;cursor:pointer" onclick="_anSort('customer_note_count')">Notes ⇅</th>
+            <th style="width:10%;padding:6px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--pg-text3);text-align:left">Status</th>
+          </tr>
+        </thead>
+        <tbody id="an-tbody"></tbody>
+      </table>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--pg-text3)">
+        <div id="an-pg-info"></div>
+        <div id="an-pg-btns" style="display:flex;gap:5px"></div>
+      </div>
+    </div>`;
+
+  renderTable();
+}
+
+function logout(){localStorage.clear();window.location.href='/login';}
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);const b=document.getElementById('theme-btn');if(b)b.textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('pocbible_theme',t);}catch(e){}}
+function exportAdminPocPDF(pocId) {
+  const p = pocs.find(x => x.poc_id === pocId);
+  if (!p) return;
+  const w = window.open('', '_blank');
+  const prog = _adminProgress[pocId] || [];
+  const custNotes = _adminCustomerNotes[pocId] || [];
+  const wkRows = prog.map((wk,i) => '<tr><td>'+(i+1)+'</td><td>'+(wk.label||'')+'</td><td>'+(wk.pct||0)+'%</td><td>'+(wk.done||0)+'/'+(wk.total||0)+'</td><td>'+(wk.signoff?'✓ Signed off':'—')+'</td></tr>').join('');
+  const cnHtml = custNotes.map(n => '<li><b>'+(n.section_title||n.week_id||'')+'</b> — '+n.note+'</li>').join('');
+  w.document.write('<!DOCTYPE html><html><head><title>POC Report</title><style>body{font-family:sans-serif;padding:32px;color:#111}h1{font-size:20px;color:#01A982}h2{font-size:14px;margin:20px 0 6px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#f3f4f6;padding:6px 8px;text-align:left}td{padding:6px 8px;border-bottom:1px solid #e5e7eb}li{margin:4px 0;font-size:12px}.meta{font-size:12px;color:#6b7280;margin-bottom:20px}</style></head><body><h1>HPE Morpheus POC Status</h1><div class=meta><b>'+p.customer_name+'</b> · '+p.poc_id+' · SE: '+(p.se_name||p.se_email||'')+'</div><h2>Week Progress</h2><table><tr><th>#</th><th>Week</th><th>Progress</th><th>Items</th><th>Sign-Off</th></tr>'+wkRows+'</table>'+(cnHtml?'<h2>Customer Notes</h2><ul>'+cnHtml+'</ul>':'')+'</body></html>');
+  w.document.close();
+  setTimeout(() => w.print(), 400);
+}
+
+async function adminCompletePoc(pocId){
+  if(!confirm('Mark this POC as Completed? This cannot be undone by the SE.')) return;
+  const r=await fetch(API+'/api/admin/pocs/'+pocId+'/complete',{method:'PUT',headers:hdr()});
+  if(r.ok){showToast('POC marked as Completed');await loadPocs();if(selectedAdminPoc===pocId)renderAdminDetailPanel(pocId);}
+  else showToast('Error completing POC');
+}
+
+async function adminReopenPoc(pocId){
+  if(!confirm('Reopen this POC as Extended?\n\nThis will:\n• Reset ALL week progress and signoffs\n• Clear ALL customer comments\n• Set Smartsheet status to Extended (+45 days)\n\nThis cannot be undone.')) return;
+  const r=await fetch(API+'/api/admin/pocs/'+pocId+'/reopen',{method:'PUT',headers:hdr()});
+  if(r.ok){showToast('POC reopened and reset');await loadPocs();if(selectedAdminPoc===pocId)renderAdminDetailPanel(pocId);}
+  else showToast('Error reopening POC');
+}
+
+async function adminReassignPoc(pocId){
+  if(!users.length){try{const r=await fetch(API+'/api/admin/users',{headers:hdr()});if(r.ok)users=await r.json();}catch(e){}}
+  const seUsers=users.filter(u=>u.is_active&&(u.role==='se'||u.role==='partner'));
+  if(!seUsers.length){showToast('No active SE/Partner users found');return;}
+  const opts=seUsers.map(u=>`${u.id}:${u.name||u.email}`).join(',');
+  const choice=prompt('Enter SE email to reassign to:\n'+seUsers.map(u=>u.email).join('\n'));
+  if(!choice)return;
+  const target=seUsers.find(u=>u.email===choice.trim());
+  if(!target){showToast('User not found');return;}
+  const r=await fetch(API+'/api/admin/pocs/'+pocId+'/reassign',{method:'PATCH',headers:hdr(),body:JSON.stringify({se_id:target.id})});
+  if(r.ok){showToast('POC reassigned to '+target.email);await loadPocs();if(selectedAdminPoc===pocId)renderAdminDetailPanel(pocId);}
+  else showToast('Error reassigning POC');
+}
+
+async function adminExtendPoc(pocId){
+  const days=parseInt(prompt('Extend POC by how many days? (1–365)'));
+  if(!days||days<1||days>365){showToast('Enter a valid number of days (1–365)');return;}
+  const r=await fetch(API+'/api/admin/pocs/'+pocId+'/extend',{method:'PATCH',headers:hdr(),body:JSON.stringify({days})});
+  if(r.ok){const d=await r.json();showToast('Extended — new end date: '+d.end_date);await loadPocs();if(selectedAdminPoc===pocId)renderAdminDetailPanel(pocId);}
+  else showToast('Error extending POC');
+}
+
+
+function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');}
+(function(){try{const t=localStorage.getItem('pocbible_theme');if(t)applyTheme(t);}catch(e){}})();
+
+// ── DANGER ZONE ────────────────────────────────────────────────────────────
+let _dzOpen=false;
+function toggleDangerZone(){
+  _dzOpen=!_dzOpen;
+  document.getElementById('dz-body').style.display=_dzOpen?'block':'none';
+  document.getElementById('dz-chevron').textContent=_dzOpen?'▲':'▼';
+}
+async function previewCleanup(){
+  const btn=document.getElementById('btn-preview-cleanup');
+  btn.textContent='Loading…';btn.disabled=true;
+  try{
+    const res=await fetch(API+'/api/admin/db/cleanup-preview',{headers:hdr()});
+    if(!res.ok){const d=await res.json();showToast(d.detail||'Error');btn.textContent='Preview what will be deleted';btn.disabled=false;return;}
+    const d=await res.json();
+    document.getElementById('dz-users').textContent=d.users;
+    document.getElementById('dz-pocs').textContent=d.pocs;
+    document.getElementById('dz-states').textContent=d.poc_states;
+    document.getElementById('dz-notes').textContent=d.poc_notes;
+    document.getElementById('dz-logs').textContent=d.sync_logs;
+    document.getElementById('dz-preserved').innerHTML='<strong>Preserved:</strong> '+d.master_admin_preserved+' &nbsp;|&nbsp; <strong>Smartsheet:</strong> '+d.smartsheet;
+    document.getElementById('dz-stats').style.display='block';
+    btn.textContent='✓ Preview loaded — type CLEAN below to proceed';btn.disabled=false;
+  }catch(e){showToast('Connection error');btn.textContent='Preview what will be deleted';btn.disabled=false;}
+}
+function onCleanConfirmInput(val){
+  const btn=document.getElementById('btn-execute-cleanup');
+  if(val.trim()==='CLEAN') btn.classList.add('ready');
+  else btn.classList.remove('ready');
+}
+function executeCleanup(){
+  const val=document.getElementById('dz-confirm-input').value.trim();
+  if(val!=='CLEAN') return;
+  document.getElementById('btn-execute-cleanup').style.display='none';
+  document.getElementById('dz-confirm2').style.display='block';
+}
+function cancelCleanup(){
+  document.getElementById('dz-confirm2').style.display='none';
+  document.getElementById('btn-execute-cleanup').style.display='block';
+}
+async function finalCleanup(){
+  document.getElementById('dz-confirm2').style.display='none';
+  document.getElementById('btn-execute-cleanup').textContent='Deleting…';
+  document.getElementById('btn-execute-cleanup').style.display='block';
+  document.getElementById('btn-execute-cleanup').classList.remove('ready');
+  try{
+    const res=await fetch(API+'/api/admin/db/cleanup',{method:'POST',headers:hdr(),body:JSON.stringify({confirm:'CLEAN'})});
+    if(!res.ok){const d=await res.json();showToast(d.detail||'Cleanup failed');document.getElementById('btn-execute-cleanup').textContent='DELETE ALL TEST DATA';document.getElementById('btn-execute-cleanup').classList.add('ready');return;}
+    const d=await res.json();
+    const el=document.getElementById('dz-result');
+    el.style.display='block';
+    el.innerHTML='<strong>✓ Cleanup complete.</strong><br><br>'+
+      'Deleted: <strong>'+d.deleted.users+' users</strong>, <strong>'+d.deleted.pocs+' POCs</strong>, '+
+      '<strong>'+d.deleted.poc_states+' states</strong>, <strong>'+d.deleted.poc_notes+' notes</strong>, '+
+      '<strong>'+d.deleted.sync_logs+' sync logs</strong><br>'+
+      'Preserved: '+d.preserved+'<br>Smartsheet: '+d.smartsheet;
+    document.getElementById('dz-confirm-input').value='';
+    document.getElementById('dz-stats').style.display='none';
+    document.getElementById('btn-preview-cleanup').textContent='Preview what will be deleted';
+    document.getElementById('btn-execute-cleanup').textContent='DELETE ALL TEST DATA';
+    showToast('Database cleaned.');
+    await loadUsers();
+    if(document.getElementById('view-pocs')?.style.display!=='none') await loadPocs();
+  }catch(e){showToast('Connection error');document.getElementById('btn-execute-cleanup').textContent='DELETE ALL TEST DATA';document.getElementById('btn-execute-cleanup').classList.add('ready');}
+}
+
+init();
+</script>
+</body>
+</html>

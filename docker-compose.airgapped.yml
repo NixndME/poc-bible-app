@@ -1,0 +1,52 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# POC Bible — Air-gapped minimal setup
+#
+# Runs ONLY the customer POC checklist view. No Smartsheet calls, no internet.
+# The SE seeds the POC record once, then hands the customer the /poc/<token> URL.
+#
+# ── Setup ─────────────────────────────────────────────────────────────────────
+#   cp .env.airgapped.example .env.airgapped
+#   # Fill in .env.airgapped with your values (passwords, JWT secret)
+#
+# ── Before going air-gapped (while still connected) ───────────────────────────
+#   docker build -t poc-bible:latest .
+#   docker save poc-bible:latest -o poc-bible.tar
+#   docker save postgres:16-alpine -o postgres.tar
+#
+# ── In the air-gapped zone ────────────────────────────────────────────────────
+#   docker load -i poc-bible.tar
+#   docker load -i postgres.tar
+#   docker compose -f docker-compose.airgapped.yml up -d
+#   docker compose -f docker-compose.airgapped.yml run --rm app python scripts/seed_poc.py
+#   # → script prints: Customer URL → http://localhost:8000/poc/<token>
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: pocbible
+    volumes:
+      - pgdata_airgapped:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  app:
+    image: poc-bible:latest
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.airgapped
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata_airgapped:

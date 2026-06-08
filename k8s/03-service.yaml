@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: poc-bible-svc
+  namespace: poc-bible
+  labels:
+    app: poc-bible
+spec:
+  type: ClusterIP
+  selector:
+    app: poc-bible
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000

@@ -1,0 +1,14 @@
+fastapi==0.115.12
+uvicorn==0.34.3
+sqlalchemy==2.0.41
+psycopg2-binary==2.9.10
+python-jose[cryptography]==3.4.0
+bcrypt==4.0.1
+python-dotenv==1.1.0
+pydantic==2.11.3
+httpx==0.28.1
+apscheduler==3.11.0
+smartsheet-python-sdk==3.0.4
+slowapi==0.1.9
+
+email-validator==2.2.0

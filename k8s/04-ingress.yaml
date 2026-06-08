@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: poc-bible
+  namespace: poc-bible
+  labels:
+    app: poc-bible
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: poc.init0xff.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: poc-bible-svc
+                port:
+                  number: 8000
