@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta
 from typing import Optional, List
@@ -494,9 +495,15 @@ def execute_cleanup(body: dict, admin: User = Depends(require_admin), db: Sessio
     if body.get("confirm") != "CLEAN":
         raise HTTPException(400, 'Send {"confirm": "CLEAN"} to execute cleanup.')
     from src.models import SyncLog
-    # Delete in dependency order (CustomerNote first — FK dependency on Poc)
+    # Delete in dependency order — child tables before pocs to satisfy FK constraints.
+    # poc_notes is a legacy table (replaced by customer_notes) that may still exist
+    # in older deployments. Delete it with raw SQL so it doesn't block pocs deletion.
+    try:
+        db.execute(text("DELETE FROM poc_notes"))
+    except Exception:
+        pass  # table doesn't exist in clean environments — safe to ignore
     customer_notes_deleted = db.query(CustomerNote).delete(synchronize_session=False)
-    notes_deleted = 0  # SE private notes removed
+    notes_deleted = 0
     states_deleted = db.query(PocState).delete(synchronize_session=False)
     pocs_deleted = db.query(Poc).delete(synchronize_session=False)
     users_deleted = db.query(User).filter(User.is_master == False).delete(synchronize_session=False)
