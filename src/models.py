@@ -16,6 +16,7 @@ class User(Base):
     expires_at = Column(Date, nullable=True)  # partners: created_at + 6 months
     is_active = Column(Boolean, default=True)  # deactivate, never delete
     is_master = Column(Boolean, default=False)  # master admin: god-level, can manage other admins
+    must_reset_password = Column(Boolean, default=True)  # force password change on first login
     created_at = Column(DateTime, server_default=func.now())
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 

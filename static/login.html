@@ -19,8 +19,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .field input:focus{border-color:#01A982;box-shadow:0 0 0 3px rgba(1,169,130,.1)}
 .btn{width:100%;padding:12px;background:#01A982;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s}
 .btn:hover{background:#007A5E}
+.btn:disabled{background:#9CA3AF;cursor:default}
 .err{color:#DC2626;font-size:13px;text-align:center;margin-bottom:12px;display:none}
 .info{text-align:center;margin-top:16px;font-size:12px;color:#9CA3AF}
+.reset-notice{background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#92400E;line-height:1.5}
+.reset-notice strong{display:block;margin-bottom:2px}
+.pw-hint{font-size:11px;color:#9CA3AF;margin-top:4px}
+.panel{display:none}
+.panel.active{display:block}
 
 @media(max-width:480px){
   .card{margin:16px;padding:24px 20px;border-radius:12px}
@@ -33,38 +39,123 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
   <div class="hdr">
     <div class="hpe">HPE</div>
     <h1>Morpheus Enterprise POC Bible</h1>
-    <p>Sign in to manage POCs</p>
+    <p id="hdr-sub">Sign in to manage POCs</p>
   </div>
   <div class="body">
-    <div class="err" id="err"></div>
-    <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@hpe.com" autofocus></div>
-    <div class="field"><label>Password</label><input type="password" id="pass" placeholder="Enter password"></div>
-    <button class="btn" onclick="login()">Sign In</button>
-    <div class="info">Admin, SE, and Partner accounts only.<br>Customers access POCs via their unique URL.</div>
+
+    <!-- Login panel -->
+    <div class="panel active" id="panel-login">
+      <div class="err" id="err-login"></div>
+      <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@hpe.com" autofocus></div>
+      <div class="field"><label>Password</label><input type="password" id="pass" placeholder="Enter password"></div>
+      <button class="btn" id="btn-login" onclick="login()">Sign In</button>
+      <div class="info">Admin, SE, and Partner accounts only.<br>Customers access POCs via their unique URL.</div>
+    </div>
+
+    <!-- Force reset panel -->
+    <div class="panel" id="panel-reset">
+      <div class="reset-notice">
+        <strong>Password reset required</strong>
+        Please set a new password before continuing. Must be at least 8 characters.
+      </div>
+      <div class="err" id="err-reset"></div>
+      <div class="field">
+        <label>New Password</label>
+        <input type="password" id="new-pass" placeholder="Min. 8 characters">
+      </div>
+      <div class="field">
+        <label>Confirm Password</label>
+        <input type="password" id="confirm-pass" placeholder="Repeat new password">
+        <div class="pw-hint">At least 8 characters.</div>
+      </div>
+      <button class="btn" id="btn-reset" onclick="doReset()">Set Password &amp; Continue</button>
+    </div>
+
   </div>
 </div>
 <script>
+let _resetToken = null;
+
 document.getElementById('pass').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+document.getElementById('confirm-pass').addEventListener('keydown', e => { if(e.key==='Enter') doReset(); });
+
 async function login() {
   const email = document.getElementById('email').value.trim();
-  const pass = document.getElementById('pass').value;
-  const errEl = document.getElementById('err');
+  const pass  = document.getElementById('pass').value;
+  const errEl = document.getElementById('err-login');
   errEl.style.display = 'none';
   if (!email || !pass) { errEl.textContent='Enter email and password'; errEl.style.display='block'; return; }
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Signing in…';
   try {
-    const res = await fetch('/api/auth/login', {
+    const res  = await fetch('/api/auth/login', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({email, password: pass})
     });
     const data = await res.json();
-    if (!res.ok) { errEl.textContent = data.detail || 'Login failed'; errEl.style.display='block'; return; }
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('role', data.role);
-    localStorage.setItem('userName', data.name || data.email || '');
-    localStorage.setItem('userEmail', data.email || '');
-    if (data.role === 'admin') window.location.href = '/admin';
-    else window.location.href = '/dashboard';
-  } catch(e) { errEl.textContent='Connection error'; errEl.style.display='block'; }
+    if (!res.ok) {
+      errEl.textContent = data.detail || 'Login failed';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (data.must_reset) {
+      _resetToken = data.reset_token;
+      document.getElementById('panel-login').classList.remove('active');
+      document.getElementById('panel-reset').classList.add('active');
+      document.getElementById('hdr-sub').textContent = 'Set your new password';
+      document.getElementById('new-pass').focus();
+      return;
+    }
+    _saveAndRedirect(data);
+  } catch(e) {
+    errEl.textContent = 'Connection error';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+async function doReset() {
+  const newPass  = document.getElementById('new-pass').value;
+  const confPass = document.getElementById('confirm-pass').value;
+  const errEl    = document.getElementById('err-reset');
+  errEl.style.display = 'none';
+  if (!newPass || newPass.length < 8) {
+    errEl.textContent = 'Password must be at least 8 characters';
+    errEl.style.display = 'block'; return;
+  }
+  if (newPass !== confPass) {
+    errEl.textContent = 'Passwords do not match';
+    errEl.style.display = 'block'; return;
+  }
+  const btn = document.getElementById('btn-reset');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const res  = await fetch('/api/auth/complete-reset', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({reset_token: _resetToken, new_password: newPass})
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.detail || 'Reset failed. Please try logging in again.';
+      errEl.style.display = 'block'; return;
+    }
+    _saveAndRedirect(data);
+  } catch(e) {
+    errEl.textContent = 'Connection error';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Set Password & Continue';
+  }
+}
+
+function _saveAndRedirect(data) {
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('role', data.role);
+  localStorage.setItem('userName', data.name || data.email || '');
+  localStorage.setItem('userEmail', data.email || '');
+  if (data.role === 'admin') window.location.href = '/admin';
+  else window.location.href = '/dashboard';
 }
 </script>
 </body>

@@ -31,6 +31,26 @@ def create_token(user_id: int, email: str, role: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
+def create_reset_token(user_id: int) -> str:
+    """Short-lived (15 min) token used only for forced first-login password reset."""
+    payload = {
+        "sub": str(user_id),
+        "scope": "pwd_reset",
+        "exp": datetime.utcnow() + timedelta(minutes=15),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def decode_reset_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    if payload.get("scope") != "pwd_reset":
+        raise HTTPException(status_code=400, detail="Invalid token scope")
+    return payload
+
+
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])

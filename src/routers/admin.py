@@ -54,6 +54,7 @@ def create_user(req: CreateUserRequest, admin: User = Depends(require_admin), db
         company=req.company,
         expires_at=expires,
         created_by=admin.id,
+        must_reset_password=True,
     )
     db.add(user)
     db.commit()
@@ -111,6 +112,7 @@ def reset_password(user_id: int, req: ResetPasswordRequest, admin: User = Depend
     if not req.new_password or len(req.new_password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
     user.password_hash = hash_password(req.new_password)
+    user.must_reset_password = True  # force user to set their own password on next login
     db.commit()
     return {"message": f"Password reset for {user.email}"}
 

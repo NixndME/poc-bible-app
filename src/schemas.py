@@ -9,10 +9,23 @@ class LoginRequest(BaseModel):
     password: str
 
 class TokenResponse(BaseModel):
-    token: str
-    role: str
-    name: str
-    email: str
+    must_reset: bool = False
+    reset_token: Optional[str] = None   # present only when must_reset=True
+    token: Optional[str] = None         # None when must_reset=True
+    role: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+
+class CompleteResetRequest(BaseModel):
+    reset_token: str
+    new_password: str
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_new_password(cls, v):
+        if not v or len(v.strip()) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        return v
 
 # Users
 class CreateUserRequest(BaseModel):

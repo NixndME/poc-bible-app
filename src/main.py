@@ -100,6 +100,8 @@ async def lifespan(app: FastAPI):
 
     # users table
     _add_col("users", "is_master", "BOOLEAN DEFAULT FALSE")
+    # FALSE default: existing users keep access; only new users (and admin-reset passwords) get forced reset
+    _add_col("users", "must_reset_password", "BOOLEAN DEFAULT FALSE")
 
     # customer_notes table
     for _col, _typ in [
@@ -125,6 +127,7 @@ async def lifespan(app: FastAPI):
                 password_hash=hash_password(ADMIN_PASSWORD),
                 role="admin",
                 is_master=True,
+                must_reset_password=False,  # master admin never gets force-reset
             )
             db.add(admin_user)
             db.commit()
@@ -136,6 +139,7 @@ async def lifespan(app: FastAPI):
             existing.is_master = True
             existing.role = "admin"
             existing.password_hash = hash_password(ADMIN_PASSWORD)
+            existing.must_reset_password = False  # master admin never gets force-reset
             db.commit()
             print(f"[INIT] Admin account synced from secret: {ADMIN_EMAIL}")
     finally:
