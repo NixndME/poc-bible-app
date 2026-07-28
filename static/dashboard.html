@@ -50,6 +50,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 .mods-row{display:flex;gap:5px;flex-wrap:wrap}
 .mod-chip{font-size:11px;padding:3px 9px;border-radius:20px;border:0.5px solid #DDE3EC;color:#6B7280;cursor:pointer;background:#fff;user-select:none}
 .mod-chip.sel{background:#E1F5EE;border-color:#5DCAA5;color:#085041}
+.scope-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.scope-chip{font-size:11px;padding:4px 11px;border-radius:20px;border:0.5px dashed #C6CDD8;color:#6B7280;cursor:pointer;background:var(--pg-surface);user-select:none;transition:all .12s ease}
+.scope-chip:hover{border-color:#01A982;color:#01A982}
+.scope-chip.on{background:#E1F5EE;border-style:solid;border-color:#5DCAA5;color:#085041;font-weight:600}
+.scope-chip.locked{cursor:not-allowed;opacity:.85;border-style:solid}
+.scope-chip.locked:hover{border-color:#5DCAA5;color:#085041}
 .btn-create{padding:8px 20px;background:#01A982;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
 .btn-create:hover{background:#0F6E56}
 .form-msg{font-size:11px;padding:7px 10px;border-radius:6px;margin-top:8px;display:none}
@@ -528,6 +534,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
           <div class="mod-chip" id="m-hks" data-key="hks" onclick="toggleModule(this)">HKS / MKS</div>
           <div class="mod-chip" id="m-terraform" data-key="terraform" onclick="toggleModule(this)">Terraform</div>
           <div class="mod-chip" id="m-ansible" data-key="ansible" onclick="toggleModule(this)">Ansible</div>
+          <div class="mod-chip" id="m-sdn" data-key="sdn" onclick="toggleModule(this)">SDN / Networking</div>
+          <div class="mod-chip" id="m-optionlists" data-key="optionlists" onclick="toggleModule(this)">Option Lists</div>
+          <div class="mod-chip" id="m-pricing" data-key="pricing" onclick="toggleModule(this)">Prices & Price Sets</div>
+          <div class="mod-chip" id="m-whitelabel" data-key="whitelabel" onclick="toggleModule(this)">White Labelling</div>
         </div>
         <div id="mod-auto-note" style="font-size:10px;color:#9CA3AF;margin-top:6px"></div>
       </div>
@@ -612,7 +622,7 @@ const WEEK_STRUCTURE = [
     {id:'grp-network',name:'Network and firewall verification',count:2,items:['n1','n2']},
     {id:'grp-install',name:'Package download and installation',count:5,items:['i1','i2','i3','i4','i5']},
     {id:'grp-verify',name:'Post-installation verification',count:3,items:['v1','v2','v3']},
-    {id:'grp-setup',name:'Initial appliance setup and license',count:5,items:['s1','s2','s3','s4','s6']}]},
+    {id:'grp-setup',name:'Initial appliance setup and license',count:6,items:['s1','s2','s3','s4','s6','s7']}]},
   {id:'week2',label:'Week 2 – Add Clouds and Build Governance',groups:[
     {id:'grp-license-planning',name:'POC license planning',count:1,items:['lp1']},
     {id:'grp-aws',name:'Add AWS cloud',count:4,items:['aws1','aws2','aws3','aws4']},
@@ -636,6 +646,46 @@ const WEEK_STRUCTURE = [
     {id:'grp-w5-analytics',name:'Analytics, guidance and reports',count:3,items:['w5a1','w5a2','w5a3']},
     {id:'grp-w5-signoff',name:'Success criteria review and sign-off',count:2,items:['w5s1','w5s2']}]},
 ];
+
+// Optional-module weeks — mirrors MODULE_GROUPS in src/routers/pocs.py, which
+// itself mirrors static/index.html's MODULE_WEEKS. Kept separate from
+// WEEK_STRUCTURE (see admin.html for the same pattern) and joined at lookup
+// time via structFor() so nothing assuming "5 core weeks" silently breaks.
+const MODULE_STRUCTURE=[
+  {id:'hvm-w1',label:'HVM – KVM Cluster Provisioning & Workloads',short:'HVM',groups:[
+    {id:'grp-hvm-install',name:'Prerequisites and cluster provisioning',count:2,items:['hvm-c1','hvm-c2']},
+    {id:'grp-hvm-inventory',name:'Verify the cluster',count:2,items:['hvm-i1','hvm-i2']},
+    {id:'grp-hvm-provision',name:'Provision and manage a workload',count:2,items:['hvm-p1','hvm-p2']}]},
+  {id:'hks-w1',label:'HKS/MKS – Kubernetes Service on VMware / HVM',short:'HKS',groups:[
+    {id:'grp-hks-prereq',name:'Prerequisites & Infrastructure Planning',count:7,items:['hks-pre1','hks-pre2','hks-pre3','hks-pre4','hks-pre4b','hks-pre5','hks-pre6']},
+    {id:'grp-hks-configure',name:'Configure MKS Service in Morpheus Library',count:4,items:['hks-cfg1','hks-cfg2','hks-cfg3','hks-cfg4']},
+    {id:'grp-hks-provision',name:'Provision Kubernetes Cluster',count:5,items:['hks-prv1','hks-prv2','hks-prv3','hks-prv4','hks-prv5']},
+    {id:'grp-hks-validate',name:'Validate & Day-2 Operations',count:5,items:['hks-val1','hks-val2','hks-val3','hks-val4','hks-val5']}]},
+  {id:'tf-w1',label:'Terraform – Infrastructure as Code',short:'TF',groups:[
+    {id:'grp-tf-setup',name:'Connect the Terraform source',count:2,items:['tf-s1','tf-s2']},
+    {id:'grp-tf-template',name:'Create the Terraform App Blueprint',count:2,items:['tf-b1','tf-b2']},
+    {id:'grp-tf-lifecycle',name:'Deploy, plan and destroy',count:2,items:['tf-l1','tf-l2']}]},
+  {id:'sdn-w1',label:'SDN / Networking – Software-Defined Networking',short:'SDN',groups:[
+    {id:'grp-sdn-support',name:'Supported SDN integrations & version 9 changes',count:2,items:['sdn-s1','sdn-s2']},
+    {id:'grp-sdn-add',name:'Add the SDN integration (NSX-T example)',count:4,items:['sdn-a1','sdn-a2','sdn-a3','sdn-a4']},
+    {id:'grp-sdn-net',name:'Networks, Network Groups & Domains',count:3,items:['sdn-n1','sdn-n2','sdn-n3']},
+    {id:'grp-sdn-ipam',name:'IPAM integration (optional)',count:2,items:['sdn-i1','sdn-i2']},
+    {id:'grp-sdn-sec',name:'Security Groups & rules',count:2,items:['sdn-sg1','sdn-sg2']},
+    {id:'grp-sdn-prov',name:'Provisioning experience',count:2,items:['sdn-p1','sdn-p2']}]},
+  {id:'opl-w1',label:'Option Lists – Custom Provisioning Inputs',short:'OPL',groups:[
+    {id:'grp-opl-create',name:'Create the Option List',count:2,items:['opl-c1','opl-c2']},
+    {id:'grp-opl-input',name:'Bind the Option List to an Input',count:1,items:['opl-i1']},
+    {id:'grp-opl-use',name:'Surface the Input on forms',count:2,items:['opl-u1','opl-u2']}]},
+  {id:'price-w1',label:'Prices & Price Sets – On-Prem Cost Visibility',short:'PRICE',groups:[
+    {id:'grp-price-prices',name:'Create the Prices',count:2,items:['price-p0','price-p1']},
+    {id:'grp-price-sets',name:'Group Prices into a Price Set',count:1,items:['price-s1']},
+    {id:'grp-price-attach',name:'Attach to Service Plan and Cloud',count:2,items:['price-a1','price-a2']},
+    {id:'grp-price-verify',name:'Verify cost visibility',count:1,items:['price-v1']}]},
+  {id:'wl-w1',label:'White Labelling – Branding & Tenant Defaults',short:'WL',groups:[
+    {id:'grp-wl-enable',name:'Enable and brand the master appliance',count:2,items:['wl-e1','wl-e2']},
+    {id:'grp-wl-tenant',name:'Per-tenant branding and defaults',count:1,items:['wl-t1']}]},
+];
+function structFor(id){ return WEEK_STRUCTURE.find(s=>s.id===id) || MODULE_STRUCTURE.find(s=>s.id===id); }
 
 // ── AUTH ──────────────────────────────────────────────────────────
 const API = '';
@@ -711,6 +761,7 @@ let _progress  = {};
 let selectedPoc = null;
 let _syncMode   = {};  // { pocId: 'both'|'progress'|'note' }
 let _blockConfirm = null; // pocId awaiting block confirm
+let _gateConfirm = null;  // pocId awaiting week-gate lock/unlock confirm
 let _groupState= {};                      // { pocId: { weekId: [gDone, ...] } }
 
 // ── CREATE FORM ──────────────────────────────────────────────────
@@ -735,7 +786,7 @@ function resetAutoFill(){
   document.getElementById('ss-details').style.display='none';
   document.getElementById('ss-status').style.display='none';
   // Reset module chips
-  ['m-hvm','m-hks','m-terraform','m-ansible'].forEach(id=>{
+  ['m-hvm','m-hks','m-terraform','m-ansible','m-sdn','m-optionlists','m-pricing','m-whitelabel'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.classList.remove('sel');
   });
 }
@@ -786,7 +837,7 @@ async function lookupPocId(){
     sv('d-region',   data.region);
     sv('d-subregion',data.sub_region);
     sv('d-version',  data.morpheus_version || '8.1.x');
-    sv('d-license',  data.license_type || 'Standard License');
+    sv('d-license',  data.license_type || 'Morpheus Standard License (45 Days)');
     sv('d-sockets',  data.approved_sockets || 'TBD');
     sv('d-start',    data.start_date);
     sv('d-end',      data.end_date);
@@ -851,7 +902,7 @@ function toggleModule(el){
 
 function _getModules(){
   const mods = {};
-  ['m-hvm','m-hks','m-terraform','m-ansible'].forEach(id=>{
+  ['m-hvm','m-hks','m-terraform','m-ansible','m-sdn','m-optionlists','m-pricing','m-whitelabel'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) mods[el.dataset.key]=el.classList.contains('sel');
   });
@@ -877,7 +928,7 @@ async function createPoc(){
     smartsheet_end_date:  hv('ss-end-date') || null,
     smartsheet_status:    hv('ss-status-val'),
     product_family:       hv('ss-product-family'),
-    license_type:         hv('ss-license-type') || 'Standard License',
+    license_type:         hv('ss-license-type') || 'Morpheus Standard License (45 Days)',
     contact_name:         hv('ss-contact-name'),
     contact_email:        hv('ss-contact-email'),
     sub_region:           hv('ss-subregion'),
@@ -1017,15 +1068,20 @@ function renderPocRow(p){
     const blockBtn=blocked&&seBlocked
       ?`<button class="qa-btn qa-block" onclick="event.stopPropagation();showBlockConfirm('${p.poc_id}',true)">Restore access</button>`
       :!blocked?`<button class="qa-btn qa-block" onclick="event.stopPropagation();showBlockConfirm('${p.poc_id}',false)">Block access</button>`:'';
+    const gateLocked=p.sequential_lock!==false;
+    const gateBtn=`<button class="qa-btn" onclick="event.stopPropagation();showGateConfirm('${p.poc_id}',${gateLocked})" title="${gateLocked?'Customer must complete weeks in order':'All weeks are unlocked for this customer'}">${gateLocked?'🔒 Unlock weeks':'🔓 Lock weeks'}</button>`;
     qaStrip=`<div class="qa-strip" onclick="event.stopPropagation()">
       <button class="qa-btn qa-sync" onclick="quickSync('${p.poc_id}')">⟳ Quick sync</button>
       <button class="qa-btn" onclick="navigator.clipboard.writeText('${window.location.origin}/poc/${p.access_token}').then(()=>showToast('URL copied'))">Copy URL</button>
-      <button class="qa-btn" onclick="window.open('/poc/${p.access_token}','_blank')" title="Open customer Bible in new tab">View as customer</button>
+      <button class="qa-btn" onclick="window.open('/poc/${p.access_token}','_blank')" title="Open the customer's POC guide & task list in a new tab">Open POC Guide</button>
+      <button class="qa-btn" onclick="window.open('/poc/${p.access_token}?lookahead=1','_blank')" title="Preview all weeks including locked ones (read-only)">Look Ahead</button>
       <button class="qa-btn" onclick="copyFull('${p.poc_id}')">Copy status</button>
+      ${gateBtn}
       ${blockBtn}
       <span class="qa-meta">Last synced ${lastSynced}</span>
     </div>
-    ${_blockConfirm===p.poc_id?renderBlockConfirm(p):''}`;
+    ${_blockConfirm===p.poc_id?renderBlockConfirm(p):''}
+    ${_gateConfirm===p.poc_id?renderGateConfirm(p):''}`;
   }
 
   return `<div class="${rowClass}" id="pr-${p.poc_id.replace(/[^a-z0-9]/gi,'_')}" onclick="selectPoc('${p.poc_id}')">
@@ -1121,7 +1177,7 @@ function renderDetailPanel(pocId){
         const numCls=w.signoff?'wkn-done':w.done>0?'wkn-prog':'wkn-nil';
         const numLbl=w.signoff?'&#10003;':(i+1);
         const bodyOpen=_openWkSec[pocId+'_'+w.week_id]?'open':'';
-        const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id)||{groups:[]};
+        const struct=structFor(w.week_id)||{groups:[]};
         const grpState=(_groupState[pocId]||{})[w.week_id]||[];
         const pocNotes=_customerNotes[pocId]||[];
         const grpRows=struct.groups.map((g,gi)=>{
@@ -1209,6 +1265,18 @@ function renderDetailPanel(pocId){
       </div>
 
       <div class="dp-sec" style="margin-top:8px">
+        <div class="dp-sec-t">Scope modules <span style="font-weight:400;font-size:10px;color:var(--pg-text3)">— tap to add; a module locks once the customer has progress</span></div>
+        <div class="scope-row" id="scope-row-${pocId}">${renderScopeChips(pocId)}</div>
+        <div style="font-size:10px;color:var(--pg-text3);margin-top:6px">You can add modules anytime as the POC grows. Once a customer starts a module, only an admin can remove it.</div>
+      </div>
+
+      <div class="dp-sec" style="margin-top:8px">
+        <div class="dp-sec-t">Clouds &amp; connections <span style="font-weight:400;font-size:10px;color:var(--pg-text3)">— tap to skip sections that don't apply to this customer</span></div>
+        <div class="scope-row" id="skip-row-${pocId}">${renderSkipChips(pocId)}</div>
+        <div style="font-size:10px;color:var(--pg-text3);margin-top:6px">Skipped sections are hidden from the customer guide and excluded from progress. Non-destructive: re-enable anytime and any prior ticks come back.</div>
+      </div>
+
+      <div class="dp-sec" style="margin-top:8px">
         <div class="dp-sec-t" style="color:#01A982">Notes for SA <span style="font-weight:400;font-size:10px;color:var(--pg-text3)">— pushed to Smartsheet on next push</span></div>
         <textarea class="note-input" id="sa-notes-${pocId}" rows="3" placeholder="Optional message to SA/approver. Pushed to Smartsheet SE / Partner Notes column on next push." style="width:100%;margin-top:6px;margin-bottom:4px" onblur="saveSaNotes('${pocId}')">${(p.sa_notes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
         <div style="font-size:10px;color:#01A982" id="sa-notes-status-${pocId}"></div>
@@ -1240,14 +1308,14 @@ function buildSyncPreview(p,prog,mode,comment){
   const done=p.progress_done||0;
   const tot=p.progress_total||0;
   const daysLeft=Math.max(0,Math.round((new Date(p.end_date)-now)/86400000));
-  const signoff=(prog||[]).filter(w=>w.signoff).length;
+  const signoff=(prog||[]).filter(w=>w.signoff&&!w.is_module).length;
   let lines=[];
   if(mode!=='note'){
     lines.push(`[${d} ${t}] ${email}`);
     lines.push(`${pct}% · ${done}/${tot} · ${signoff}/5 signed off · ${daysLeft}d left`);
     lines.push('');
     (prog||[]).forEach(function(w,i){
-      var wLabel=(WEEK_STRUCTURE.find(function(s){return s.id===w.week_id;})||{}).label||w.week_label||('Week '+(i+1));
+      var wLabel=(structFor(w.week_id)||{}).label||w.week_label||('Week '+(i+1));
       var shortLabel=wLabel.replace(/^Week \d+ [\u2013-] /,'');
       if(w.signoff){
         lines.push('\u2713 '+shortLabel+' – 100% · Signed off');
@@ -1276,6 +1344,84 @@ function refreshPreview(pocId){
   const preview=buildSyncPreview(p,prog,mode,comment);
   const el=document.getElementById('push-preview-'+pocId);
   if(el) el.textContent=preview;
+}
+
+// ── SCOPE MODULE EDITING (SE self-service) ───────────────────────
+const SCOPE_MODULES=[
+  {key:'hvm',       label:'HVM / VM Essentials', weekId:'hvm-w1'},
+  {key:'hks',       label:'HKS / MKS',           weekId:'hks-w1'},
+  {key:'terraform', label:'Terraform',           weekId:'tf-w1'},
+  {key:'ansible',   label:'Ansible',             weekId:null},
+  {key:'sdn',       label:'SDN / Networking',    weekId:'sdn-w1'},
+  {key:'optionlists', label:'Option Lists',        weekId:'opl-w1'},
+  {key:'pricing',     label:'Prices & Price Sets', weekId:'price-w1'},
+  {key:'whitelabel',  label:'White Labelling',     weekId:'wl-w1'},
+];
+function _moduleHasProgress(pocId,weekId){
+  if(!weekId) return false;
+  const w=(_progress[pocId]||[]).find(x=>x.week_id===weekId);
+  return !!(w&&(w.signoff||w.done>0));
+}
+function renderScopeChips(pocId){
+  const p=allPocs.find(x=>x.poc_id===pocId);
+  const mods=(p&&p.modules)||{};
+  const isAdmin=(role==='admin');
+  return SCOPE_MODULES.map(m=>{
+    const on=!!mods[m.key];
+    const locked=on&&!isAdmin&&_moduleHasProgress(pocId,m.weekId);
+    const cls='scope-chip'+(on?' on':'')+(locked?' locked':'');
+    const title=locked?'Customer has progress — only an admin can remove this module':(on?'Tap to remove':'Tap to add');
+    const click=locked?'':`onclick="toggleScope('${pocId}','${m.key}')"`;
+    return `<div class="${cls}" ${click} title="${title}">${on?'&#10003; ':''}${m.label}${locked?' &#128274;':''}</div>`;
+  }).join('');
+}
+async function toggleScope(pocId,key){
+  const p=allPocs.find(x=>x.poc_id===pocId);
+  if(!p) return;
+  const mods=Object.assign({},p.modules||{});
+  mods[key]=!mods[key];
+  const rowEl=document.getElementById('scope-row-'+pocId);
+  try{
+    const res=await fetch(API+'/api/pocs/'+pocId+'/modules',{method:'PUT',headers:hdr(),body:JSON.stringify({modules:mods})});
+    const d=await res.json();
+    if(!res.ok){ showToast(d.detail||'Could not update scope'); return; }
+    p.modules=d.modules;
+    if(rowEl) rowEl.innerHTML=renderScopeChips(pocId);
+  }catch(e){ showToast('Network error updating scope'); }
+}
+
+// ── GUIDE SECTION SKIPS (SE self-service: clouds & connections) ───
+const SKIPPABLE_SECTIONS=[
+  {id:'grp-aws',             label:'AWS Cloud (W2)'},
+  {id:'grp-vmware',          label:'VMware vCenter (W2)'},
+  {id:'grp-w3-aws',          label:'Provision on AWS (W3)'},
+  {id:'grp-w3-golden-linux', label:'Linux Image on VMware (W3)'},
+  {id:'grp-w3-golden-win',   label:'Windows Image on VMware (W3)'},
+];
+function renderSkipChips(pocId){
+  const p=allPocs.find(x=>x.poc_id===pocId);
+  const skips=(p&&p.skips)||{};
+  return SKIPPABLE_SECTIONS.map(s=>{
+    const skippedFlag=!!skips[s.id];
+    const cls='scope-chip'+(skippedFlag?'':' on');
+    const title=skippedFlag?'Section is skipped (hidden from customer) — tap to restore':'Section is active — tap to skip it for this customer';
+    return `<div class="${cls}" onclick="toggleSkip('${pocId}','${s.id}')" title="${title}">${skippedFlag?'&#10007; ':'&#10003; '}${s.label}${skippedFlag?' (skipped)':''}</div>`;
+  }).join('');
+}
+async function toggleSkip(pocId,gid){
+  const p=allPocs.find(x=>x.poc_id===pocId);
+  if(!p) return;
+  const skips=Object.assign({},p.skips||{});
+  skips[gid]=!skips[gid];
+  const rowEl=document.getElementById('skip-row-'+pocId);
+  try{
+    const res=await fetch(API+'/api/pocs/'+pocId+'/skips',{method:'PUT',headers:hdr(),body:JSON.stringify({skips:skips})});
+    const d=await res.json();
+    if(!res.ok){ showToast(d.detail||'Could not update sections'); return; }
+    p.skips=d.skips;
+    if(rowEl) rowEl.innerHTML=renderSkipChips(pocId);
+    showToast(skips[gid]?'Section skipped — hidden from customer guide':'Section restored');
+  }catch(e){ showToast('Network error updating sections'); }
 }
 
 function setSyncMode(pocId,mode){
@@ -1341,6 +1487,30 @@ function showBlockConfirm(pocId, isCurrentlyBlocked){
   renderList();
 }
 
+// ── WEEK GATE CONFIRM ───────────────────────────────────────────────
+function renderGateConfirm(p){
+  const gateLocked=p.sequential_lock!==false;
+  if(gateLocked){
+    // Currently locked -> confirming an UNLOCK. Low-risk, no warning needed.
+    return `<div class="block-confirm">
+      <span class="bc-msg">Unlock all weeks for <strong>${p.customer_name}</strong>? They'll be able to jump to any week regardless of sign-off order.</span>
+      <button class="btn-bcancel" onclick="event.stopPropagation();_gateConfirm=null;renderList()">Cancel</button>
+      <button class="btn-bc" style="background:#01A982" onclick="event.stopPropagation();unlockGate('${p.poc_id}')">Yes, unlock</button>
+    </div>`;
+  }
+  // Currently unlocked -> confirming a RE-LOCK. This is the one that needs a real warning.
+  return `<div class="block-confirm">
+    <span class="bc-msg">Re-lock week order for <strong>${p.customer_name}</strong>? Nothing is deleted — every saved checkbox and sign-off stays intact. But any week that isn't fully checked off or signed off will become inaccessible again until the weeks before it are completed, in order. If they jumped ahead and left earlier weeks incomplete, those later weeks will disappear from view until they catch up.</span>
+    <button class="btn-bcancel" onclick="event.stopPropagation();_gateConfirm=null;renderList()">Cancel</button>
+    <button class="btn-bc" onclick="event.stopPropagation();lockGate('${p.poc_id}')">Yes, re-lock</button>
+  </div>`;
+}
+
+function showGateConfirm(pocId, isCurrentlyLocked){
+  _gateConfirm=pocId;
+  renderList();
+}
+
 
 const _openWkSec={};
 function toggleWkSection(pocId,weekId){
@@ -1383,7 +1553,7 @@ async function loadAllState(pocId){
     const allStates=await res.json();
     _groupState[pocId]={};
     allStates.forEach(ws=>{
-      const struct=WEEK_STRUCTURE.find(s=>s.id===ws.week_id);
+      const struct=structFor(ws.week_id);
       if(!struct) return;
       const chks=ws.checks||{};
       if(typeof chks==='object'&&!Array.isArray(chks)){
@@ -1451,7 +1621,7 @@ function filterNotesPane(pocId, weekId) {
   // Always single-week filter — never show multiple weeks simultaneously
   const filtered = weekId ? notes.filter(n => n.week_id === weekId) : notes;
   if (titleEl) {
-    const ws = weekId ? WEEK_STRUCTURE.find(w => w.id === weekId) : null;
+    const ws = weekId ? structFor(weekId) : null;
     titleEl.textContent = ws ? ws.label + ' notes' : 'Customer notes';
   }
   // Open pane and render filtered notes
@@ -1485,7 +1655,7 @@ async function copyFull(pocId){
 function buildFullText(poc, prog){
   const today=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
   const pct=poc.progress_pct||0, done=poc.progress_done||0, tot=poc.progress_total||0;
-  const so=(prog||[]).filter(w=>w.signoff).length;
+  const so=(prog||[]).filter(w=>w.signoff&&!w.is_module).length;
   const lines=[
     `POC Status Update — ${poc.customer_name} (${poc.poc_id})`,
     `Updated: ${today}  |  SE: ${localStorage.getItem('userName')||''}`,
@@ -1499,7 +1669,7 @@ function buildFullText(poc, prog){
     } else if(w.done>0){
       lines.push(`${w.label}: ${w.done}/${w.total} (${w.pct}%)`);
       const gs=(_groupState[poc.poc_id]||{})[w.week_id];
-      const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id);
+      const struct=structFor(w.week_id);
       if(gs&&struct){
         struct.groups.forEach((g,gi)=>{
           const gd=gs[gi]||0;
@@ -1531,6 +1701,24 @@ async function unblockPoc(id){
   if(selectedPoc===id) renderDetailPanel(id);
 }
 
+// ── WEEK GATE LOCK / UNLOCK ─────────────────────────────────────────
+async function unlockGate(id){
+  const res=await fetch(API+'/api/pocs/'+id+'/unlock-gate',{method:'PUT',headers:hdr()});
+  _gateConfirm=null;
+  if(!res.ok){const d=await res.json().catch(()=>({}));showToast(d.detail||'Failed to unlock weeks');renderList();return;}
+  showToast('Week gate removed — all weeks unlocked for this customer');
+  await loadPocs();
+  if(selectedPoc===id) renderDetailPanel(id);
+}
+async function lockGate(id){
+  const res=await fetch(API+'/api/pocs/'+id+'/lock-gate',{method:'PUT',headers:hdr()});
+  _gateConfirm=null;
+  if(!res.ok){const d=await res.json().catch(()=>({}));showToast(d.detail||'Failed to re-lock weeks');renderList();return;}
+  showToast('Week gate re-applied');
+  await loadPocs();
+  if(selectedPoc===id) renderDetailPanel(id);
+}
+
 function logout(){localStorage.clear();window.location.href='/login';}
 
 function applyTheme(t){document.documentElement.setAttribute('data-theme',t);const b=document.getElementById('theme-btn');if(b)b.textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('pocbible_theme',t);}catch(e){}}
@@ -1557,7 +1745,7 @@ let _activeNoteSection = null;
 
 function updateAmberDots(pocId) {
   const notes = _customerNotes[pocId] || [];
-  WEEK_STRUCTURE.forEach(w => {
+  WEEK_STRUCTURE.concat(MODULE_STRUCTURE).forEach(w => {
     w.groups.forEach(g => {
       const rowEl = document.getElementById('grpr-' + pocId + '-' + (g.id||''));
       if (!rowEl) return;
@@ -1583,7 +1771,7 @@ function renderTimelineNotes(notes, activeSec, scrollEl, pocId) {
     scrollEl.innerHTML = '<div class="np-empty">No customer notes yet for this POC.</div>';
     return;
   }
-  const wkOrder = WEEK_STRUCTURE.map(w => w.week_id || w.id);
+  const wkOrder = WEEK_STRUCTURE.concat(MODULE_STRUCTURE).map(w => w.week_id || w.id);
   const byWeek = {};
   notes.forEach(n => {
     const wid = n.week_id || 'week1';
@@ -1592,14 +1780,17 @@ function renderTimelineNotes(notes, activeSec, scrollEl, pocId) {
     if (!byWeek[wid][sid]) byWeek[wid][sid] = {title: n.section_title || (sid === '__sec' ? '' : sid), notes: []};
     byWeek[wid][sid].notes.push(n);
   });
+  // Defensive: any note week_id not covered by either registry still gets shown,
+  // appended after the known weeks/modules, rather than silently dropped.
+  Object.keys(byWeek).forEach(wid => { if (!wkOrder.includes(wid)) wkOrder.push(wid); });
   let h = '';
   wkOrder.forEach((wid, wi) => {
     const wSecs = byWeek[wid];
     if (!wSecs) return;
-    h += `<div class="ntl-wk"><div class="ntl-wk-hdr"><div class="ntl-wk-num">W${wi+1}</div><span class="ntl-wk-lbl">Week ${wi+1}</span></div>`;
+    const _wkStruct = structFor(wid);
+    h += `<div class="ntl-wk"><div class="ntl-wk-hdr"><div class="ntl-wk-num">${_wkStruct&&_wkStruct.short?_wkStruct.short:'W'+(wi+1)}</div><span class="ntl-wk-lbl">${_wkStruct&&_wkStruct.label?_wkStruct.label:'Week '+(wi+1)}</span></div>`;
 
-      // Sort sections by curriculum position in WEEK_STRUCTURE
-      const _wkStruct = WEEK_STRUCTURE[wi] || WEEK_STRUCTURE.find(w => (w.id||w.week_id) === wid);
+      // Sort sections by curriculum position in the resolved week/module structure
       const _grpOrder = _wkStruct ? (_wkStruct.groups||[]).map(g => g.id) : [];
       const sortedSecs = Object.entries(wSecs).sort(([a],[b]) => {
         const ai = _grpOrder.indexOf(a), bi = _grpOrder.indexOf(b);

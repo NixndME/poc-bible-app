@@ -119,6 +119,7 @@ class PocResponse(BaseModel):
     requestor_type: Optional[str]
     force_blocked: bool
     admin_override: bool
+    sequential_lock: bool = True
     smartsheet_status: Optional[str]
     smartsheet_row_id: Optional[str] = None
     watermark_text: Optional[str]
@@ -162,6 +163,7 @@ class PublicPocResponse(BaseModel):
     watermark_text: Optional[str]
     status: str
     days_remaining: int
+    sequential_lock: bool = True
 
 class AccessDeniedResponse(BaseModel):
     allowed: bool = False

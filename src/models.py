@@ -31,6 +31,7 @@ class Poc(Base):
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     modules = Column(JSON, default=dict)  # {hvm: bool, hks: bool, terraform: bool, ansible: bool}
+    skips = Column(JSON, default=dict)    # {grp-aws: bool, grp-vmware: bool, ...} - guide sections hidden for this POC
     license_type = Column(String, nullable=True)
     requestor_type = Column(String, nullable=True)
 
@@ -54,6 +55,13 @@ class Poc(Base):
     admin_override = Column(Boolean, default=False)
     override_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     override_at = Column(DateTime, nullable=True)
+
+    # Week sequencing gate. True (default) = customer must sign off each week
+    # in order before the next unlocks. False = SE/admin removed the gate for
+    # this POC — all weeks are visible/editable regardless of order.
+    sequential_lock = Column(Boolean, default=True)
+    gate_changed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    gate_changed_at = Column(DateTime, nullable=True)
 
     # Smartsheet sync
     smartsheet_row_id = Column(String, nullable=True)

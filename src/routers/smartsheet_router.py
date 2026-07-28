@@ -49,7 +49,7 @@ def lookup_poc_id(poc_id: str, user: User = Depends(require_se_or_partner)):
         "row_id":         result.get("row_id", ""),
         "customer_name":  result.get("customer_name", ""),
         "product_family": result.get("product_family", ""),
-        "license_type":   result.get("license_type", "Standard License"),
+        "license_type":   result.get("license_type", "Morpheus Standard License (45 Days)"),
         "se_name":        result.get("se_name", ""),
         "region":         result.get("region", ""),
         "sub_region":     result.get("sub_region", ""),

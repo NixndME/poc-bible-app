@@ -23,7 +23,7 @@ WEEK_STRUCTURE = [
         {"name": "Network and firewall verification", "count": 2},
         {"name": "Package download and installation", "count": 5},
         {"name": "Post-installation verification", "count": 3},
-        {"name": "Initial appliance setup and license", "count": 5},
+        {"name": "Initial appliance setup and license", "count": 6},
     ]},
     {"id": "week2", "label": "Week 2 – Add Clouds and Build Governance", "groups": [
         {"name": "POC license planning", "count": 1},
@@ -59,17 +59,25 @@ def _build_progress_text(poc: Poc, db: Session) -> str:
     Option D format: ▌ header bar, block progress bar, compact week table,
     group detail for in-progress weeks, SE notes at bottom.
     """
+    from src.routers.pocs import WEEK_GROUPS_ITEMS as _WGI, _skipped_items_by_week
     states = db.query(PocState).filter(PocState.poc_id == poc.poc_id).all()
     state_map = {s.week_id: s for s in states}
+    skipped = _skipped_items_by_week(poc)
 
-    def _checked(chk):
-        """Count True values from either dict or list checks."""
+    def _week_ids(wid):
+        """Item ids counted for this week (known items only, skips excluded).
+        Ignores namespaced keys like 'uc:UC-01' stored alongside item checks."""
+        return [i for i in _WGI.get(wid, []) if i not in skipped.get(wid, set())]
+
+    def _checked(wid, chk):
+        """Count checked items from either dict or legacy list checks."""
         if not chk:
             return 0
-        if isinstance(chk, dict): return sum(1 for v in chk.values() if v)
+        if isinstance(chk, dict):
+            return sum(1 for i in _week_ids(wid) if chk.get(i))
         return sum(1 for c in chk if c)
-    total_done = sum(_checked(s.checks) for s in states)
-    total_items   = sum(sum(g["count"] for g in wk["groups"]) for wk in WEEK_STRUCTURE)
+    total_done = sum(_checked(s.week_id, s.checks) for s in states)
+    total_items   = sum(len(_week_ids(wk["id"])) for wk in WEEK_STRUCTURE)
     pct           = round(total_done / total_items * 100) if total_items > 0 else 0
     signoff_count = sum(1 for s in states if s.signoff)
 
@@ -115,12 +123,12 @@ def _build_progress_text(poc: Poc, db: Session) -> str:
         s       = state_map.get(wk["id"])
         name    = SHORT.get(wk["id"], f"Week {i}")
         label   = f"W{i}  {name}"
-        w_total = sum(g["count"] for g in wk["groups"])
+        w_total = len(_week_ids(wk["id"]))
 
         if s and s.signoff:
             lines.append(f"W{i}  {name}  |  ✓ SIGNED OFF")
         elif s and s.checks and (any(s.checks.values() if isinstance(s.checks, dict) else s.checks)):
-            w_done = _checked(s.checks)
+            w_done = _checked(wk["id"], s.checks)
             w_pct  = round(w_done / w_total * 100) if w_total > 0 else 0
             lines.append(f"W{i}  {name}  |  {w_pct}%  ({w_done}/{w_total}) ▶")
             detail_weeks.append((i, wk, s))
@@ -128,8 +136,6 @@ def _build_progress_text(poc: Poc, db: Session) -> str:
             lines.append(f"W{i}  {name}  |  not started")
 
     # Group detail for in-progress weeks
-    # Import item IDs map from pocs router
-    from src.routers.pocs import WEEK_GROUPS_ITEMS as _WGI
     for wk_num, wk, s in detail_weeks:
         lines.append("")
         lines.append(f"W{wk_num} detail:")
@@ -138,22 +144,29 @@ def _build_progress_text(poc: Poc, db: Session) -> str:
         wk_items = _WGI.get(wk["id"], [])
         zero_buf = []
         item_offset = 0
+        wk_skipped = skipped.get(wk["id"], set())
         for g in wk["groups"]:
             g_count = g["count"]
             g_item_ids = wk_items[item_offset:item_offset + g_count]
             item_offset += g_count
+            g_active_ids = [iid for iid in g_item_ids if iid not in wk_skipped]
+            if not g_active_ids and g_item_ids:
+                flush_zeros(zero_buf)
+                lines.append(f"  – {g['name']}  skipped")
+                continue
+            g_total = len(g_active_ids)
             if isinstance(s.checks, dict):
-                g_done = sum(1 for iid in g_item_ids if chk_dict.get(iid))
+                g_done = sum(1 for iid in g_active_ids if chk_dict.get(iid))
             else:
                 g_done = sum(1 for c in (s.checks[item_offset-g_count:item_offset] if len(s.checks)>item_offset-g_count else []) if c)
-            if g_done == g["count"]:
+            if g_done == g_total:
                 flush_zeros(zero_buf)
-                lines.append(f"  ✓ {g['name']}  {g_done}/{g['count']}")
+                lines.append(f"  ✓ {g['name']}  {g_done}/{g_total}")
             elif g_done > 0:
                 flush_zeros(zero_buf)
-                lines.append(f"  · {g['name']}  {g_done}/{g['count']}")
+                lines.append(f"  · {g['name']}  {g_done}/{g_total}")
             else:
-                entry     = f"○ {g['name']}  0/{g['count']}"
+                entry     = f"○ {g['name']}  0/{g_total}"
                 projected = "  " + "  ·  ".join(zero_buf + [entry])
                 if zero_buf and len(projected) > LINE_LIMIT:
                     flush_zeros(zero_buf)

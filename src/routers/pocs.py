@@ -6,6 +6,7 @@ from typing import List
 from src.database import get_db
 from src.auth import require_se_or_partner, get_current_user
 from src.models import User, Poc, PocState, CustomerNote
+from src.modules import MODULES, MODULE_BY_KEY, MODULE_KEYS
 from src.schemas import (
     CreatePocRequest, PocResponse,
     SaveStateRequest,
@@ -13,7 +14,7 @@ from src.schemas import (
 
 
 WEEK_GROUPS_ITEMS = {
-    "week1": ["p1","p2","p3","p4","p5","p6","n1","n2","i1","i2","i3","i4","i5","v1","v2","v3","s1","s2","s3","s4","s6"],
+    "week1": ["p1","p2","p3","p4","p5","p6","n1","n2","i1","i2","i3","i4","i5","v1","v2","v3","s1","s2","s3","s4","s6","s7"],
     "week2": ["lp1","aws1","aws2","aws3","aws4","vc1","vc2","vc3","t1","t2","r1","r2","rdpol1","rdpol2","rdpol3","pol-naming","pol-tags","wv1","wv2","wv3"],
     "week3": ["w3a1","w3a2","w3a3","w3g1","w3g2","w3g3","w3cy1","w3t1","w3t2","w3t3","w3w1"],
     "week4": ["w4b1","w4b2","w4c1","w4c2","w4c3","w4f1","w4f2","w4f3"],
@@ -21,14 +22,96 @@ WEEK_GROUPS_ITEMS = {
 }
 WEEK_GROUPS_TOTAL = sum(len(v) for v in WEEK_GROUPS_ITEMS.values())
 
+# Optional-module weeks (mirrors static/index.html MODULE_WEEKS group/item structure).
+# Kept separate from WEEK_GROUPS_ITEMS/WEEK_GROUPS_TOTAL above -- module progress is
+# reported per-module in get_poc_progress(), not folded into the core POC's overall %.
+MODULE_LABELS = {
+    "hvm-w1":   "HVM - KVM Cluster Provisioning & Workloads",
+    "hks-w1":   "HKS/MKS - Kubernetes Service on VMware / HVM",
+    "tf-w1":    "Terraform - Infrastructure as Code",
+    "sdn-w1":   "SDN / Networking - Software-Defined Networking",
+    "opl-w1":   "Option Lists - Custom Provisioning Inputs",
+    "price-w1": "Prices & Price Sets - On-Prem Cost Visibility",
+    "wl-w1":    "White Labelling - Branding & Tenant Defaults",
+}
+MODULE_GROUPS = {
+    "hvm-w1": [
+        {"id": "grp-hvm-install",   "name": "Prerequisites and cluster provisioning", "items": ["hvm-c1", "hvm-c2"]},
+        {"id": "grp-hvm-inventory", "name": "Verify the cluster",                     "items": ["hvm-i1", "hvm-i2"]},
+        {"id": "grp-hvm-provision", "name": "Provision and manage a workload",        "items": ["hvm-p1", "hvm-p2"]},
+    ],
+    "hks-w1": [
+        {"id": "grp-hks-prereq",   "name": "Prerequisites & Infrastructure Planning",   "items": ["hks-pre1", "hks-pre2", "hks-pre3", "hks-pre4", "hks-pre4b", "hks-pre5", "hks-pre6"]},
+        {"id": "grp-hks-configure","name": "Configure MKS Service in Morpheus Library", "items": ["hks-cfg1", "hks-cfg2", "hks-cfg3", "hks-cfg4"]},
+        {"id": "grp-hks-provision","name": "Provision Kubernetes Cluster",              "items": ["hks-prv1", "hks-prv2", "hks-prv3", "hks-prv4", "hks-prv5"]},
+        {"id": "grp-hks-validate", "name": "Validate & Day-2 Operations",               "items": ["hks-val1", "hks-val2", "hks-val3", "hks-val4", "hks-val5"]},
+    ],
+    "tf-w1": [
+        {"id": "grp-tf-setup",    "name": "Connect the Terraform source",         "items": ["tf-s1", "tf-s2"]},
+        {"id": "grp-tf-template", "name": "Create the Terraform App Blueprint",   "items": ["tf-b1", "tf-b2"]},
+        {"id": "grp-tf-lifecycle","name": "Deploy, plan and destroy",             "items": ["tf-l1", "tf-l2"]},
+    ],
+    "sdn-w1": [
+        {"id": "grp-sdn-support", "name": "Supported SDN integrations & version 9 changes", "items": ["sdn-s1", "sdn-s2"]},
+        {"id": "grp-sdn-add",     "name": "Add the SDN integration (NSX-T example)",        "items": ["sdn-a1", "sdn-a2", "sdn-a3", "sdn-a4"]},
+        {"id": "grp-sdn-net",     "name": "Networks, Network Groups & Domains",              "items": ["sdn-n1", "sdn-n2", "sdn-n3"]},
+        {"id": "grp-sdn-ipam",    "name": "IPAM integration (optional)",                     "items": ["sdn-i1", "sdn-i2"]},
+        {"id": "grp-sdn-sec",     "name": "Security Groups & rules",                         "items": ["sdn-sg1", "sdn-sg2"]},
+        {"id": "grp-sdn-prov",    "name": "Provisioning experience",                         "items": ["sdn-p1", "sdn-p2"]},
+    ],
+    "opl-w1": [
+        {"id": "grp-opl-create", "name": "Create the Option List",              "items": ["opl-c1", "opl-c2"]},
+        {"id": "grp-opl-input",  "name": "Bind the Option List to an Input",    "items": ["opl-i1"]},
+        {"id": "grp-opl-use",    "name": "Surface the Input on forms",         "items": ["opl-u1", "opl-u2"]},
+    ],
+    "price-w1": [
+        {"id": "grp-price-prices","name": "Create the Prices",                     "items": ["price-p0", "price-p1"]},
+        {"id": "grp-price-sets",  "name": "Group Prices into a Price Set",         "items": ["price-s1"]},
+        {"id": "grp-price-attach","name": "Attach to Service Plan and Cloud",      "items": ["price-a1", "price-a2"]},
+        {"id": "grp-price-verify","name": "Verify cost visibility",               "items": ["price-v1"]},
+    ],
+    "wl-w1": [
+        {"id": "grp-wl-enable", "name": "Enable and brand the master appliance", "items": ["wl-e1", "wl-e2"]},
+        {"id": "grp-wl-tenant", "name": "Per-tenant branding and defaults",      "items": ["wl-t1"]},
+    ],
+}
+
+# Guide sections the SE may skip per-POC (cloud/connection-specific groups).
+# Skipping hides the section in the customer guide and excludes its items from
+# progress totals. Non-destructive: saved checks are preserved if re-enabled.
+SKIPPABLE_GROUPS = {
+    "grp-aws":             {"label": "Add AWS Cloud",                 "week": "week2", "items": ["aws1","aws2","aws3","aws4"]},
+    "grp-vmware":          {"label": "Add VMware vCenter Cloud",      "week": "week2", "items": ["vc1","vc2","vc3"]},
+    "grp-w3-aws":          {"label": "Provision on AWS",              "week": "week3", "items": ["w3a1","w3a2","w3a3"]},
+    "grp-w3-golden-linux": {"label": "Linux Golden Image on VMware",  "week": "week3", "items": ["w3g1","w3g2","w3g3"]},
+    "grp-w3-golden-win":   {"label": "Windows Golden Image on VMware","week": "week3", "items": ["w3w1"]},
+}
+
+def _skipped_items_by_week(poc) -> dict:
+    """{week_id: set(item_ids)} for this POC's active skips."""
+    skips = poc.skips if isinstance(poc.skips, dict) else {}
+    out = {}
+    for gid, on in skips.items():
+        g = SKIPPABLE_GROUPS.get(gid)
+        if on and g:
+            out.setdefault(g["week"], set()).update(g["items"])
+    return out
+
 router = APIRouter(prefix="/api/pocs", tags=["pocs"])
 
 
 LICENSE_DURATIONS = {
+    "Morpheus Standard License (45 Days)": 45,
+    "VM Essentials License (30 Days)": 30,
+    "NFR License (6 Months)": 183,
+    "Internal Lab License": 90,
+    "Custom License": None,  # uses duration_days field
+    # Legacy fallbacks for existing POCs already in the DB
     "Standard License": 45,
+    "Standard Morpheus License - 45 Days": 45,
+    "VM Essentials - 30 Day Standard": 30,
     "NFR": 183,
     "Internal Lab": 90,
-    "Custom License": None,  # uses duration_days field
 }
 
 
@@ -91,7 +174,7 @@ def create_poc(req: CreatePocRequest, user: User = Depends(require_se_or_partner
     if req.smartsheet_end_date:
         end_date = req.smartsheet_end_date
     else:
-        duration = LICENSE_DURATIONS.get(req.license_type or "Standard License", 45)
+        duration = LICENSE_DURATIONS.get(req.license_type or "Morpheus Standard License (45 Days)", 45)
         if duration is None:
             duration = req.duration_days or 45
         end_date = req.start_date + timedelta(days=duration)
@@ -140,12 +223,14 @@ def list_my_pocs(user: User = Depends(require_se_or_partner), db: Session = Depe
     result = []
     for p in pocs:
         states = db.query(PocState).filter(PocState.poc_id == p.poc_id).all()
-        total = WEEK_GROUPS_TOTAL
+        skipped = _skipped_items_by_week(p)
+        total = WEEK_GROUPS_TOTAL - sum(len(v) for v in skipped.values())
         done = 0
         for s in states:
             chks = s.checks if isinstance(s.checks, dict) else {}
+            wk_skipped = skipped.get(s.week_id, set())
             for iid in WEEK_GROUPS_ITEMS.get(s.week_id, []):
-                if chks.get(iid): done += 1
+                if iid not in wk_skipped and chks.get(iid): done += 1
         pct = round(done / total * 100) if total > 0 else 0
         result.append({
             "poc_id": p.poc_id,
@@ -155,10 +240,13 @@ def list_my_pocs(user: User = Depends(require_se_or_partner), db: Session = Depe
             "start_date": str(p.start_date),
             "end_date": str(p.end_date),
             "modules": p.modules,
+            "skips": p.skips if isinstance(p.skips, dict) else {},
             "license_type": p.license_type,
             "requestor_type": p.requestor_type,
             "force_blocked": p.force_blocked,
             "admin_override": p.admin_override,
+            "sequential_lock": p.sequential_lock if p.sequential_lock is not None else True,
+            "gate_changed_at": p.gate_changed_at.isoformat() if p.gate_changed_at else None,
             "smartsheet_status": p.smartsheet_status,
             "watermark_text": p.watermark_text,
             "status": p.status,
@@ -230,6 +318,41 @@ def unblock_my_poc(poc_id: str, user: User = Depends(require_se_or_partner), db:
     return {"message": f"POC {poc_id} access restored for customer."}
 
 
+@router.put("/{poc_id}/unlock-gate")
+def unlock_week_gate(poc_id: str, user: User = Depends(require_se_or_partner), db: Session = Depends(get_db)):
+    """Remove the week-order gate for this POC: all weeks become visible/editable
+    regardless of prior sign-off. Default is locked (sequential_lock=True) for
+    every POC; this is an explicit per-POC opt-out."""
+    poc = db.query(Poc).filter(Poc.poc_id == poc_id).first()
+    if not poc:
+        raise HTTPException(404, "POC not found")
+    if poc.se_id != user.id and user.role != "admin":
+        raise HTTPException(403, "Not your POC")
+    poc.sequential_lock = False
+    poc.gate_changed_by = user.id
+    poc.gate_changed_at = datetime.utcnow()
+    db.commit()
+    return {"message": f"Week gate removed for {poc_id}. All weeks are now unlocked."}
+
+
+@router.put("/{poc_id}/lock-gate")
+def lock_week_gate(poc_id: str, user: User = Depends(require_se_or_partner), db: Session = Depends(get_db)):
+    """Re-apply the week-order gate. Nothing is deleted -- all saved checks and
+    sign-offs remain in poc_state. But any week that was reached without an
+    explicit sign-off (or without 100% of its own items checked) becomes
+    inaccessible again until the weeks before it are complete, in order."""
+    poc = db.query(Poc).filter(Poc.poc_id == poc_id).first()
+    if not poc:
+        raise HTTPException(404, "POC not found")
+    if poc.se_id != user.id and user.role != "admin":
+        raise HTTPException(403, "Not your POC")
+    poc.sequential_lock = True
+    poc.gate_changed_by = user.id
+    poc.gate_changed_at = datetime.utcnow()
+    db.commit()
+    return {"message": f"Week gate re-applied for {poc_id}."}
+
+
 # --- State management ---
 
 @router.put("/{poc_id}/request-completion")
@@ -280,7 +403,7 @@ def get_poc_progress(poc_id: str, user: User = Depends(require_se_or_partner), d
             {"id":"grp-network","name":"Network and firewall verification","items":["n1","n2"]},
             {"id":"grp-install","name":"Package download and installation","items":["i1","i2","i3","i4","i5"]},
             {"id":"grp-verify","name":"Post-installation verification","items":["v1","v2","v3"]},
-            {"id":"grp-setup","name":"Initial appliance setup and license","items":["s1","s2","s3","s4","s6"]},
+            {"id":"grp-setup","name":"Initial appliance setup and license","items":["s1","s2","s3","s4","s6","s7"]},
         ],
         "week2": [
             {"id":"grp-license-planning","name":"POC license planning","items":["lp1"]},
@@ -320,6 +443,8 @@ def get_poc_progress(poc_id: str, user: User = Depends(require_se_or_partner), d
             return sum(1 for v in checks.values() if v), len(checks)
         return sum(1 for c in checks if c), len(checks)
 
+    poc_skips = poc.skips if isinstance(poc.skips, dict) else {}
+
     result = []
     for wid, label in WEEK_LABELS.items():
         s = state_map.get(wid)
@@ -327,6 +452,7 @@ def get_poc_progress(poc_id: str, user: User = Depends(require_se_or_partner), d
 
         groups_out = []
         for g in WEEK_GROUPS.get(wid, []):
+            g_skipped = bool(poc_skips.get(g["id"]))
             g_total = len(g["items"])
             g_done = sum(1 for iid in g["items"] if checks_dict.get(iid))
             groups_out.append({
@@ -334,12 +460,14 @@ def get_poc_progress(poc_id: str, user: User = Depends(require_se_or_partner), d
                 "name": g["name"],
                 "done": g_done,
                 "total": g_total,
+                "skipped": g_skipped,
             })
 
         # Total MUST come from WEEK_GROUPS definition, not len(checks)
         # len(checks) = only keys ever stored; WEEK_GROUPS = expected items
-        total = sum(g["total"] for g in groups_out)
-        done = sum(g["done"] for g in groups_out)
+        # Skipped groups are excluded from week totals entirely.
+        total = sum(g["total"] for g in groups_out if not g["skipped"])
+        done = sum(g["done"] for g in groups_out if not g["skipped"])
 
         result.append({
             "week_id": wid,
@@ -351,6 +479,41 @@ def get_poc_progress(poc_id: str, user: User = Depends(require_se_or_partner), d
             "updated_at": str(s.updated_at) if s and s.updated_at else None,
             "groups": groups_out,
         })
+
+    # Append rows for enabled optional modules (HVM, HKS, Terraform, SDN, Option
+    # Lists, Pricing, White Labelling) so they show up in "Week progress" the
+    # same way core weeks do. Ansible has no dedicated guide section (no week_ids
+    # in MODULE_BY_KEY) so it never produces a row here.
+    poc_modules = poc.modules if isinstance(poc.modules, dict) else {}
+    for m in MODULES:
+        if not poc_modules.get(m["key"]):
+            continue
+        for mwid in m.get("week_ids", []):
+            if mwid not in MODULE_GROUPS:
+                continue
+            s = state_map.get(mwid)
+            checks_dict = (s.checks if isinstance(s.checks, dict) else {}) if s else {}
+            groups_out = []
+            for g in MODULE_GROUPS[mwid]:
+                g_total = len(g["items"])
+                g_done = sum(1 for iid in g["items"] if checks_dict.get(iid))
+                groups_out.append({
+                    "id": g["id"], "name": g["name"],
+                    "done": g_done, "total": g_total, "skipped": False,
+                })
+            total = sum(g["total"] for g in groups_out)
+            done = sum(g["done"] for g in groups_out)
+            result.append({
+                "week_id": mwid,
+                "label": MODULE_LABELS.get(mwid, m["label"]),
+                "done": done,
+                "total": total,
+                "pct": round(done / total * 100) if total > 0 else 0,
+                "signoff": s.signoff if s else False,
+                "updated_at": str(s.updated_at) if s and s.updated_at else None,
+                "groups": groups_out,
+                "is_module": True,
+            })
     return result
 
 
@@ -391,6 +554,112 @@ def save_poc_state(poc_id: str, req: SaveStateRequest, user: User = Depends(requ
         db.add(state)
     db.commit()
     return {"message": f"State saved for {poc_id} / {req.week_id}"}
+
+
+# --- Scope modules: self-service editing (append-only for SE; admin unrestricted) ---
+
+def _module_has_progress(db: Session, poc_id: str, key: str) -> bool:
+    """True if the customer has any saved progress or sign-off on the module's section(s)."""
+    m = MODULE_BY_KEY.get(key)
+    if not m or not m.get("week_ids"):
+        return False
+    states = db.query(PocState).filter(
+        PocState.poc_id == poc_id,
+        PocState.week_id.in_(m["week_ids"]),
+    ).all()
+    for s in states:
+        if s.signoff:
+            return True
+        if isinstance(s.checks, dict) and any(s.checks.values()):
+            return True
+        if isinstance(s.checks, list) and any(s.checks):
+            return True
+    return False
+
+
+@router.get("/meta/modules")
+def list_scope_modules(user: User = Depends(require_se_or_partner)):
+    """Registry of available scope modules, for the edit-scope UI."""
+    return {"modules": [{"key": m["key"], "label": m["label"]} for m in MODULES]}
+
+
+@router.put("/{poc_id}/modules")
+def update_poc_modules_se(poc_id: str, body: dict, user: User = Depends(require_se_or_partner), db: Session = Depends(get_db)):
+    """
+    SE/partner self-service scope editing.
+    Adding a module is always allowed. Removing a module is allowed for the owner
+    only while the customer has NO progress on it (safe undo); once the customer
+    has any progress or sign-off, removal is admin-only. Admins may add or remove
+    anything at any time.
+    """
+    poc = db.query(Poc).filter(Poc.poc_id == poc_id).first()
+    if not poc:
+        raise HTTPException(404, "POC not found")
+    if poc.se_id != user.id and user.role != "admin":
+        raise HTTPException(403, "Not your POC")
+
+    requested = body.get("modules") or {}
+    current = poc.modules if isinstance(poc.modules, dict) else {}
+    is_admin = user.role == "admin"
+    result = dict(current)
+
+    for key in MODULE_KEYS:
+        want = bool(requested.get(key, current.get(key, False)))
+        have = bool(current.get(key, False))
+        if want == have:
+            continue
+        if want and not have:
+            result[key] = True                      # add: always allowed
+        else:                                       # remove
+            if is_admin or not _module_has_progress(db, poc_id, key):
+                result[key] = False                 # admin, or SE safe-undo (no progress)
+            else:
+                raise HTTPException(
+                    403,
+                    f"Module '{key}' has customer progress and can only be removed by an admin."
+                )
+
+    poc.modules = result
+    db.commit()
+    return {"poc_id": poc_id, "modules": result}
+
+
+# --- Guide section skips: SE can hide cloud/connection sections per POC ---
+
+
+@router.get("/meta/skippable")
+def list_skippable_sections(user: User = Depends(require_se_or_partner)):
+    """Registry of guide sections the SE may skip, for the edit-scope UI."""
+    return {"sections": [
+        {"id": gid, "label": g["label"], "week": g["week"]}
+        for gid, g in SKIPPABLE_GROUPS.items()
+    ]}
+
+
+@router.put("/{poc_id}/skips")
+def update_poc_skips(poc_id: str, body: dict, user: User = Depends(require_se_or_partner), db: Session = Depends(get_db)):
+    """
+    SE/partner self-service section skipping. Skipping hides the section in the
+    customer guide and removes its items from progress totals. Non-destructive:
+    saved checks are kept, so re-enabling a section restores prior progress.
+    """
+    poc = db.query(Poc).filter(Poc.poc_id == poc_id).first()
+    if not poc:
+        raise HTTPException(404, "POC not found")
+    if poc.se_id != user.id and user.role != "admin":
+        raise HTTPException(403, "Not your POC")
+
+    requested = body.get("skips") or {}
+    current = poc.skips if isinstance(poc.skips, dict) else {}
+    result = dict(current)
+    for gid in SKIPPABLE_GROUPS:
+        if gid in requested:
+            result[gid] = bool(requested[gid])
+    # Drop unknown/stale keys
+    result = {k: v for k, v in result.items() if k in SKIPPABLE_GROUPS}
+    poc.skips = result
+    db.commit()
+    return {"poc_id": poc_id, "skips": result}
 
 
 # --- Notes ---

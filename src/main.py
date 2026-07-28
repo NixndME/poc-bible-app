@@ -95,6 +95,10 @@ async def lifespan(app: FastAPI):
         ("last_synced_at",       "TIMESTAMP"),
         ("last_accessed_at",     "TIMESTAMP"),
         ("sa_notes",             "TEXT"),
+        ("skips",                "JSON"),
+        ("sequential_lock",      "BOOLEAN DEFAULT TRUE"),  # week-order gate; TRUE keeps existing behavior for all current POCs
+        ("gate_changed_by",      "INTEGER"),
+        ("gate_changed_at",      "TIMESTAMP"),
     ]:
         _add_col("pocs", _col, _typ)
 

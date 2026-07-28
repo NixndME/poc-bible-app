@@ -99,7 +99,7 @@ def lookup_poc(poc_id: str, requester_email: str = "", is_admin: bool = False) -
         if row_poc_id and row_poc_id.upper() == poc_id.upper():
             status         = _cell_value(row, SS_COL_STATUS) or ""
             product_family = _cell_value(row, SS_COL_PRODUCT_FAMILY) or ""
-            license_type   = _cell_value(row, SS_COL_LICENSE_TYPE) or "Standard License"
+            license_type   = _cell_value(row, SS_COL_LICENSE_TYPE) or "Morpheus Standard License (45 Days)"
             customer       = _cell_value(row, SS_COL_CUSTOMER) or ""
             se_name        = _cell_value(row, SS_COL_SE_NAME) or ""
             region         = _cell_value(row, SS_COL_REGION) or ""

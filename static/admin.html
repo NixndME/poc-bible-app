@@ -438,6 +438,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
 <div class="top-tabs">
   <div class="top-tab active" id="tab-users" onclick="showTab('users')">Users</div>
   <div class="top-tab" id="tab-pocs" onclick="showTab('pocs')">All POCs</div>
+  <div class="top-tab" id="tab-coverage" onclick="showTab('coverage')">Module Coverage</div>
   <div class="top-tab" id="tab-sync" onclick="showTab('sync')">Sync</div>
   <div class="top-tab" id="tab-analytics" onclick="showTab('analytics')">Analytics</div>
 </div>
@@ -537,6 +538,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-seri
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- MODULE COVERAGE VIEW -->
+  <div class="pocs-layout" id="view-coverage" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0;flex-shrink:0;gap:12px;flex-wrap:wrap">
+      <div style="font-size:13px;font-weight:700;color:var(--pg-text)">Module Coverage</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input class="sinput" id="cov-search" placeholder="Search customer or SE…" oninput="renderCoverage()" style="color-scheme:light;min-width:200px">
+        <select class="fi" id="cov-module" onchange="renderCoverage()" style="color-scheme:light;min-width:150px;height:32px">
+          <option value="">All modules</option>
+        </select>
+        <button onclick="loadPocs().then(renderCoverage)" style="font-size:11px;padding:4px 12px;border:0.5px solid var(--pg-border);border-radius:6px;background:var(--pg-surface);color:var(--pg-text2);cursor:pointer;font-weight:600">&#8635; Refresh</button>
+      </div>
+    </div>
+    <div id="coverage-summary" style="padding:12px 16px 0;flex-shrink:0"></div>
+    <div id="coverage-body" style="flex:1;overflow-y:auto;padding:12px 16px">
+      <div style="text-align:center;padding:40px;color:var(--pg-text3)">Loading coverage…</div>
     </div>
   </div>
 
@@ -662,7 +681,7 @@ const WEEK_STRUCTURE=[
     {id:'grp-network',name:'Network and firewall verification',count:2,items:['n1','n2']},
     {id:'grp-install',name:'Package download and installation',count:5,items:['i1','i2','i3','i4','i5']},
     {id:'grp-verify',name:'Post-installation verification',count:3,items:['v1','v2','v3']},
-    {id:'grp-setup',name:'Initial appliance setup and license',count:5,items:['s1','s2','s3','s4','s6']}]},
+    {id:'grp-setup',name:'Initial appliance setup and license',count:6,items:['s1','s2','s3','s4','s6','s7']}]},
   {id:'week2',label:'Week 2 – Add Clouds and Build Governance',groups:[
     {id:'grp-license-planning',name:'POC license planning',count:1,items:['lp1']},
     {id:'grp-aws',name:'Add AWS cloud',count:4,items:['aws1','aws2','aws3','aws4']},
@@ -686,6 +705,48 @@ const WEEK_STRUCTURE=[
     {id:'grp-w5-analytics',name:'Analytics, guidance and reports',count:3,items:['w5a1','w5a2','w5a3']},
     {id:'grp-w5-signoff',name:'Success criteria review and sign-off',count:2,items:['w5s1','w5s2']}]},
 ];
+
+// Optional-module weeks — mirrors MODULE_GROUPS in src/routers/pocs.py, which
+// itself mirrors static/index.html's MODULE_WEEKS. Kept in a separate array
+// (not merged into WEEK_STRUCTURE) so nothing that assumes "5 core weeks"
+// (note timeline week-index labeling, wkOrder, etc.) silently breaks; the two
+// are concatenated at lookup time via structFor().
+const MODULE_STRUCTURE=[
+  {id:'hvm-w1',label:'HVM – KVM Cluster Provisioning & Workloads',short:'HVM',groups:[
+    {id:'grp-hvm-install',name:'Prerequisites and cluster provisioning',count:2,items:['hvm-c1','hvm-c2']},
+    {id:'grp-hvm-inventory',name:'Verify the cluster',count:2,items:['hvm-i1','hvm-i2']},
+    {id:'grp-hvm-provision',name:'Provision and manage a workload',count:2,items:['hvm-p1','hvm-p2']}]},
+  {id:'hks-w1',label:'HKS/MKS – Kubernetes Service on VMware / HVM',short:'HKS',groups:[
+    {id:'grp-hks-prereq',name:'Prerequisites & Infrastructure Planning',count:7,items:['hks-pre1','hks-pre2','hks-pre3','hks-pre4','hks-pre4b','hks-pre5','hks-pre6']},
+    {id:'grp-hks-configure',name:'Configure MKS Service in Morpheus Library',count:4,items:['hks-cfg1','hks-cfg2','hks-cfg3','hks-cfg4']},
+    {id:'grp-hks-provision',name:'Provision Kubernetes Cluster',count:5,items:['hks-prv1','hks-prv2','hks-prv3','hks-prv4','hks-prv5']},
+    {id:'grp-hks-validate',name:'Validate & Day-2 Operations',count:5,items:['hks-val1','hks-val2','hks-val3','hks-val4','hks-val5']}]},
+  {id:'tf-w1',label:'Terraform – Infrastructure as Code',short:'TF',groups:[
+    {id:'grp-tf-setup',name:'Connect the Terraform source',count:2,items:['tf-s1','tf-s2']},
+    {id:'grp-tf-template',name:'Create the Terraform App Blueprint',count:2,items:['tf-b1','tf-b2']},
+    {id:'grp-tf-lifecycle',name:'Deploy, plan and destroy',count:2,items:['tf-l1','tf-l2']}]},
+  {id:'sdn-w1',label:'SDN / Networking – Software-Defined Networking',short:'SDN',groups:[
+    {id:'grp-sdn-support',name:'Supported SDN integrations & version 9 changes',count:2,items:['sdn-s1','sdn-s2']},
+    {id:'grp-sdn-add',name:'Add the SDN integration (NSX-T example)',count:4,items:['sdn-a1','sdn-a2','sdn-a3','sdn-a4']},
+    {id:'grp-sdn-net',name:'Networks, Network Groups & Domains',count:3,items:['sdn-n1','sdn-n2','sdn-n3']},
+    {id:'grp-sdn-ipam',name:'IPAM integration (optional)',count:2,items:['sdn-i1','sdn-i2']},
+    {id:'grp-sdn-sec',name:'Security Groups & rules',count:2,items:['sdn-sg1','sdn-sg2']},
+    {id:'grp-sdn-prov',name:'Provisioning experience',count:2,items:['sdn-p1','sdn-p2']}]},
+  {id:'opl-w1',label:'Option Lists – Custom Provisioning Inputs',short:'OPL',groups:[
+    {id:'grp-opl-create',name:'Create the Option List',count:2,items:['opl-c1','opl-c2']},
+    {id:'grp-opl-input',name:'Bind the Option List to an Input',count:1,items:['opl-i1']},
+    {id:'grp-opl-use',name:'Surface the Input on forms',count:2,items:['opl-u1','opl-u2']}]},
+  {id:'price-w1',label:'Prices & Price Sets – On-Prem Cost Visibility',short:'PRICE',groups:[
+    {id:'grp-price-prices',name:'Create the Prices',count:2,items:['price-p0','price-p1']},
+    {id:'grp-price-sets',name:'Group Prices into a Price Set',count:1,items:['price-s1']},
+    {id:'grp-price-attach',name:'Attach to Service Plan and Cloud',count:2,items:['price-a1','price-a2']},
+    {id:'grp-price-verify',name:'Verify cost visibility',count:1,items:['price-v1']}]},
+  {id:'wl-w1',label:'White Labelling – Branding & Tenant Defaults',short:'WL',groups:[
+    {id:'grp-wl-enable',name:'Enable and brand the master appliance',count:2,items:['wl-e1','wl-e2']},
+    {id:'grp-wl-tenant',name:'Per-tenant branding and defaults',count:1,items:['wl-t1']}]},
+];
+// Looks up a week/module's structure by id across both registries.
+function structFor(id){ return WEEK_STRUCTURE.find(s=>s.id===id) || MODULE_STRUCTURE.find(s=>s.id===id); }
 
 const API='';
 const token=localStorage.getItem('token');
@@ -725,17 +786,102 @@ async function init(){
 }
 
 function showTab(tab){
-  ['users','pocs','sync','analytics'].forEach(t=>{
+  ['users','pocs','coverage','sync','analytics'].forEach(t=>{
     document.getElementById('tab-'+t).classList.toggle('active',t===tab);
     const show = t===tab;
     const el = document.getElementById('view-'+t);
     if(!show){ el.style.display='none'; return; }
-    el.style.display = t==='pocs' ? 'flex' : 'block';
-    el.style.flexDirection = t==='pocs' ? 'column' : '';
+    el.style.display = (t==='pocs'||t==='coverage') ? 'flex' : 'block';
+    el.style.flexDirection = (t==='pocs'||t==='coverage') ? 'column' : '';
   });
   if(tab==='pocs'){loadPocs();setTimeout(initAdminResizable,50);}
+  if(tab==='coverage'){loadPocs().then(renderCoverage);}
   if(tab==='sync') loadSyncLogs();
   if(tab==='analytics') loadAnalytics();
+}
+
+// ── MODULE COVERAGE (admin) ──────────────────────────────────────
+const COVERAGE_MODULES=[
+  {key:'hvm',       label:'HVM / VM Essentials', weekId:'hvm-w1'},
+  {key:'hks',       label:'HKS / MKS',           weekId:'hks-w1'},
+  {key:'terraform', label:'Terraform',           weekId:'tf-w1'},
+  {key:'ansible',   label:'Ansible',             weekId:null},
+  {key:'sdn',       label:'SDN / Networking',    weekId:'sdn-w1'},
+  {key:'optionlists', label:'Option Lists',        weekId:'opl-w1'},
+  {key:'pricing',     label:'Prices & Price Sets', weekId:'price-w1'},
+  {key:'whitelabel',  label:'White Labelling',     weekId:'wl-w1'},
+];
+let _covModuleOptsBuilt=false;
+function _covModuleProgress(p,weekId){
+  // Coarse module progress from overall POC progress; week-level detail is lazy-loaded elsewhere.
+  if(!weekId) return null;
+  return (p.progress_pct||0);
+}
+function renderCoverage(){
+  const body=document.getElementById('coverage-body');
+  const sumEl=document.getElementById('coverage-summary');
+  if(!body) return;
+  if(!_covModuleOptsBuilt){
+    const sel=document.getElementById('cov-module');
+    if(sel){ COVERAGE_MODULES.forEach(m=>{const o=document.createElement('option');o.value=m.key;o.textContent=m.label;sel.appendChild(o);}); _covModuleOptsBuilt=true; }
+  }
+  const q=(document.getElementById('cov-search')?.value||'').toLowerCase().trim();
+  const modFilter=document.getElementById('cov-module')?.value||'';
+  let rows=(pocs||[]).filter(p=>{
+    const mods=p.modules||{};
+    if(modFilter && !mods[modFilter]) return false;
+    if(q){ const hay=((p.customer_name||'')+' '+(p.se_name||'')+' '+(p.se_email||'')+' '+(p.poc_id||'')).toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  });
+
+  // Summary: adoption count per module
+  const counts={}; COVERAGE_MODULES.forEach(m=>counts[m.key]=0);
+  (pocs||[]).forEach(p=>{const mods=p.modules||{};COVERAGE_MODULES.forEach(m=>{if(mods[m.key])counts[m.key]++;});});
+  const totalPocs=(pocs||[]).length;
+  if(sumEl){
+    sumEl.innerHTML=`<div style="display:flex;gap:10px;flex-wrap:wrap">`+
+      COVERAGE_MODULES.map(m=>`<div style="background:var(--pg-surface);border:0.5px solid var(--pg-border);border-radius:10px;padding:8px 14px;min-width:120px">
+        <div style="font-size:10px;font-weight:700;color:var(--pg-text3);text-transform:uppercase;letter-spacing:.05em">${m.label}</div>
+        <div style="font-size:18px;font-weight:700;color:#01A982">${counts[m.key]}<span style="font-size:11px;font-weight:400;color:var(--pg-text3)"> / ${totalPocs} POCs</span></div>
+      </div>`).join('')+`</div>`;
+  }
+
+  if(!rows.length){ body.innerHTML=`<div style="text-align:center;padding:40px;color:var(--pg-text3)">No POCs match.</div>`; return; }
+
+  const chip=(on,label,pct)=>{
+    if(!on) return `<span style="font-size:10px;color:var(--pg-text3);border:0.5px dashed var(--pg-border);border-radius:12px;padding:2px 8px">${label}</span>`;
+    const started=(pct!==null&&pct>0);
+    const bg=started?'#E1F5EE':'#EFF6FF'; const col=started?'#085041':'#0C447C';
+    const pctTxt=(pct!==null)?` · ${pct}%`:'';
+    return `<span style="font-size:10px;font-weight:600;background:${bg};color:${col};border-radius:12px;padding:2px 8px">&#10003; ${label}${pctTxt}</span>`;
+  };
+
+  body.innerHTML=`
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="text-align:left;color:var(--pg-text3);font-size:10px;text-transform:uppercase;letter-spacing:.05em">
+          <th style="padding:8px 10px">Customer</th>
+          <th style="padding:8px 10px">SE / Partner</th>
+          <th style="padding:8px 10px">Status</th>
+          <th style="padding:8px 10px">Overall</th>
+          <th style="padding:8px 10px">Modules</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(p=>{
+          const mods=p.modules||{};
+          const modChips=COVERAGE_MODULES.map(m=>chip(!!mods[m.key],m.label,mods[m.key]?_covModuleProgress(p,m.weekId):null)).join(' ');
+          const pct=p.progress_pct||0;
+          return `<tr style="border-top:0.5px solid var(--pg-border)">
+            <td style="padding:8px 10px;font-weight:600;color:var(--pg-text)">${p.customer_name||'—'}<div style="font-size:10px;color:var(--pg-text3);font-weight:400">${p.poc_id}</div></td>
+            <td style="padding:8px 10px;color:var(--pg-text2)">${p.se_name||'—'}<div style="font-size:10px;color:var(--pg-text3)">${p.se_role||''}</div></td>
+            <td style="padding:8px 10px;color:var(--pg-text2)">${p.status||'—'}</td>
+            <td style="padding:8px 10px;color:var(--pg-text2)">${pct}%</td>
+            <td style="padding:8px 10px"><div style="display:flex;gap:5px;flex-wrap:wrap">${modChips}</div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
 }
 
 async function runSync(type, resultElId){
@@ -886,6 +1032,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeResetModal();})
 // ── ADMIN COMPACT ROW + DETAIL PANEL ────────────────────────────
 let selectedAdminPoc=null;
 let _adminBlockConfirm=null;
+let _adminGateConfirm=null;
 let _adminProgress={};
 
 function adminFilter(type){
@@ -947,16 +1094,20 @@ function renderAdminPocRow(p){
     const blockBtn=blocked
       ?`<button class="qa-btn qa-restore" onclick="event.stopPropagation();unblockPoc('${p.poc_id}')">Restore access</button>`
       :`<button class="qa-btn qa-block" onclick="event.stopPropagation();adminBlockConfirm('${p.poc_id}')">Block access</button>`;
+    const gateLocked=p.sequential_lock!==false;
+    const gateBtn=`<button class="qa-btn" onclick="event.stopPropagation();showAdminGateConfirm('${p.poc_id}')" title="${gateLocked?'Customer must complete weeks in order':'All weeks are unlocked for this customer'}">${gateLocked?'🔒 Unlock weeks':'🔓 Lock weeks'}</button>`;
     qaStrip=`<div class="qa-strip" onclick="event.stopPropagation()">
       <button class="qa-btn" onclick="copyAdminStatus('${p.poc_id}')">Copy status</button>
       <button class="qa-btn" onclick="navigator.clipboard.writeText(window.location.origin+'/poc/'+pocs.find(x=>x.poc_id==='${p.poc_id}')?.access_token).then(()=>showToast('URL copied'))">Copy URL</button>
-      <button class="qa-btn" onclick="window.open('/poc/'+pocs.find(x=>x.poc_id==='${p.poc_id}')?.access_token,'_blank')" title="Open customer Bible">View as customer</button>
+      <button class="qa-btn" onclick="window.open('/poc/'+pocs.find(x=>x.poc_id==='${p.poc_id}')?.access_token,'_blank')" title="Open the customer's POC guide & task list">Open POC Guide</button>
+      ${gateBtn}
       ${blockBtn}
       ${p.admin_override
         ?`<button class="qa-btn" style="border-color:#C4B5FD;color:#5B21B6" onclick="event.stopPropagation();revokeOverride('${p.poc_id}')">Revoke override</button>`
         :`<button class="qa-btn" style="border-color:#C4B5FD;color:#5B21B6" onclick="event.stopPropagation();overridePoc('${p.poc_id}')">Override</button>`}
     </div>
-    ${_adminBlockConfirm===p.poc_id?renderAdminBlockConfirm(p):''}`;
+    ${_adminBlockConfirm===p.poc_id?renderAdminBlockConfirm(p):''}
+    ${_adminGateConfirm===p.poc_id?renderAdminGateConfirm(p):''}`;
   }
   return `<div class="${rowClass}" id="apr-${p.poc_id.replace(/[^a-z0-9]/gi,'_')}" onclick="selectAdminPoc('${p.poc_id}')">
     <div class="pr-row">
@@ -987,6 +1138,23 @@ function renderAdminBlockConfirm(p){
   </div>`;
 }
 
+function showAdminGateConfirm(pocId){_adminGateConfirm=pocId;renderPocList();}
+function renderAdminGateConfirm(p){
+  const gateLocked=p.sequential_lock!==false;
+  if(gateLocked){
+    return `<div style="background:var(--pg-danger-bg);border:0.5px solid var(--pg-danger-border);border-radius:8px;padding:10px 12px;margin:0 12px 8px;display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--pg-text2);flex:1">Unlock all weeks for <strong>${p.customer_name}</strong>? They'll be able to jump to any week regardless of sign-off order.</span>
+      <button style="font-size:11px;padding:5px 12px;border:0.5px solid var(--pg-border);border-radius:6px;color:var(--pg-text2);background:transparent;cursor:pointer" onclick="event.stopPropagation();_adminGateConfirm=null;renderPocList()">Cancel</button>
+      <button style="font-size:11px;font-weight:600;padding:5px 12px;background:#01A982;color:#fff;border:none;border-radius:6px;cursor:pointer" onclick="event.stopPropagation();unlockGate('${p.poc_id}')">Yes, unlock</button>
+    </div>`;
+  }
+  return `<div style="background:var(--pg-danger-bg);border:0.5px solid var(--pg-danger-border);border-radius:8px;padding:10px 12px;margin:0 12px 8px;display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--pg-danger-text);flex:1">Re-lock week order for <strong>${p.customer_name}</strong>? Nothing is deleted — every saved checkbox and sign-off stays intact. But any week that isn't fully checked off or signed off will become inaccessible again until the weeks before it are completed, in order.</span>
+    <button style="font-size:11px;padding:5px 12px;border:0.5px solid var(--pg-border);border-radius:6px;color:var(--pg-text2);background:transparent;cursor:pointer" onclick="event.stopPropagation();_adminGateConfirm=null;renderPocList()">Cancel</button>
+    <button style="font-size:11px;font-weight:600;padding:5px 12px;background:#EF4444;color:#fff;border:none;border-radius:6px;cursor:pointer" onclick="event.stopPropagation();lockGate('${p.poc_id}')">Yes, re-lock</button>
+  </div>`;
+}
+
 async function selectAdminPoc(pocId){
   if(selectedAdminPoc===pocId){selectedAdminPoc=null;_adminBlockConfirm=null;closeAdminNotesPane();document.getElementById('admin-detail-pane').style.display='none';renderPocList();return;}
   selectedAdminPoc=pocId;_adminBlockConfirm=null;
@@ -1012,8 +1180,8 @@ function renderAdminDetailPanel(pocId){
     ? prog.map((w,i)=>{
         const pct=w.total>0?Math.round(w.done/w.total*100):0;
         const nc=w.signoff?'adp-wdone':w.done>0?'adp-wact':'adp-wlk';
-        const nl=w.signoff?'&#10003;':(i+1);
-        const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id)||{groups:[]};
+        const struct=structFor(w.week_id)||{groups:[]};
+        const nl=w.signoff?'&#10003;':(struct.short?struct.short.slice(0,2):(i+1));
         const grpState=(_groupState[pocId]||{})[w.week_id]||[];
         const bodyOpen=_adminOpenWkSec[pocId+'_'+w.week_id]?'open':'';
         const adminPocNotes=_adminCustomerNotes[pocId]||[];
@@ -1087,7 +1255,7 @@ function renderAdminDetailPanel(pocId){
       <div class="adp-sec">
         <div class="adp-sec-t">Modules <span style="font-weight:400;font-size:10px;color:var(--pg-text3)">— admin can enable/disable optional content</span></div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${['hvm','hks','terraform','ansible'].map(m=>{
+          ${['hvm','hks','terraform','ansible','sdn','optionlists','pricing','whitelabel'].map(m=>{
             const on=(p.modules||{})[m];
             return '<label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;cursor:pointer;padding:4px 10px;border:0.5px solid var(--pg-border);border-radius:8px;background:'+(on?'var(--pg-hpe-bg)':'var(--pg-surface)')+'"><input type=\"checkbox\" '+(on?'checked':'')+' onchange=\"updateModule(\'' + p.poc_id + '\',\'' + m + '\',this.checked)\" style=\"accent-color:#01A982\">&nbsp;'+m.toUpperCase()+'</label>';
           }).join('')}
@@ -1125,7 +1293,7 @@ let _activeAdminNoteSection = null;
 
 function updateAdminAmberDots(pocId) {
   const notes = _adminCustomerNotes[pocId] || [];
-  WEEK_STRUCTURE.forEach(w => {
+  WEEK_STRUCTURE.concat(MODULE_STRUCTURE).forEach(w => {
     w.groups.forEach(g => {
       const rowEl = document.getElementById('agrpr-' + pocId + '-' + (g.id||''));
       if (!rowEl) return;
@@ -1153,7 +1321,7 @@ function renderAdminTimelineNotes(notes, activeSec, scrollEl) {
     return;
   }
   // Group by week → section
-  const wkOrder = WEEK_STRUCTURE.map(w => w.week_id || w.id);
+  const wkOrder = WEEK_STRUCTURE.concat(MODULE_STRUCTURE).map(w => w.week_id || w.id);
   const byWeek = {};
   notes.forEach(n => {
     const wid = n.week_id || 'week1';
@@ -1162,19 +1330,22 @@ function renderAdminTimelineNotes(notes, activeSec, scrollEl) {
     if (!byWeek[wid][sid]) byWeek[wid][sid] = {title: n.section_title || sid, notes: []};
     byWeek[wid][sid].notes.push(n);
   });
+  // Defensive: any note week_id not covered by either registry still gets shown,
+  // appended after the known weeks/modules, rather than silently dropped.
+  Object.keys(byWeek).forEach(wid => { if (!wkOrder.includes(wid)) wkOrder.push(wid); });
   let h = '';
   wkOrder.forEach((wid, wi) => {
     const wSecs = byWeek[wid];
     if (!wSecs) return;
+    const _wkStruct = structFor(wid);
     h += `<div class="ntl-wk">
       <div class="ntl-wk-hdr">
-        <div class="ntl-wk-num">W${wi+1}</div>
-        <span class="ntl-wk-lbl">Week ${wi+1}</span>
+        <div class="ntl-wk-num">${_wkStruct&&_wkStruct.short?_wkStruct.short:'W'+(wi+1)}</div>
+        <span class="ntl-wk-lbl">${_wkStruct&&_wkStruct.label?_wkStruct.label:'Week '+(wi+1)}</span>
       </div>`;
 
 
-      // Sort sections by curriculum position in WEEK_STRUCTURE
-      const _wkStruct = WEEK_STRUCTURE[wi] || WEEK_STRUCTURE.find(w => (w.id||w.week_id) === wid);
+      // Sort sections by curriculum position in the resolved week/module structure
       const _grpOrder = _wkStruct ? (_wkStruct.groups||[]).map(g => g.id) : [];
       const sortedSecs = Object.entries(wSecs).sort(([a],[b]) => {
         const ai = _grpOrder.indexOf(a), bi = _grpOrder.indexOf(b);
@@ -1294,7 +1465,7 @@ function filterAdminNotesPane(pocId, weekId) {
   const filtered = weekId ? notes.filter(n => n.week_id === weekId) : notes;
   if (titleEl) {
     if (weekId) {
-      const ws = WEEK_STRUCTURE.find(w => w.id === weekId);
+      const ws = structFor(weekId);
       titleEl.textContent = ws ? ws.label + ' notes' : 'Customer notes';
     } else {
       titleEl.textContent = 'Customer notes';
@@ -1320,6 +1491,16 @@ async function blockPoc(id){
 async function unblockPoc(id){
   await fetch(API+'/api/admin/pocs/'+id+'/unblock',{method:'PUT',headers:hdr()});
   showToast('Access restored');await loadPocs();
+  if(selectedAdminPoc===id) renderAdminDetailPanel(id);
+}
+async function unlockGate(id){
+  await fetch(API+'/api/admin/pocs/'+id+'/unlock-gate',{method:'PUT',headers:hdr()});
+  _adminGateConfirm=null;showToast('Week gate removed — all weeks unlocked for this customer');await loadPocs();
+  if(selectedAdminPoc===id) renderAdminDetailPanel(id);
+}
+async function lockGate(id){
+  await fetch(API+'/api/admin/pocs/'+id+'/lock-gate',{method:'PUT',headers:hdr()});
+  _adminGateConfirm=null;showToast('Week gate re-applied');await loadPocs();
   if(selectedAdminPoc===id) renderAdminDetailPanel(id);
 }
 
@@ -1399,7 +1580,7 @@ function renderAdminWeekRow(pocId,w,i){
   const blkCls=w.signoff?'wk-done':w.done>0?'wk-prog':'';
   let body='';
   if(isOpen){
-    const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id);
+    const struct=structFor(w.week_id);
     const groups=(_groupState[pocId]||{})[w.week_id];
     if(struct)body=struct.groups.map((g,gi)=>{const gd=groups?groups[gi]:null;const txt=gd!==null&&gd!==undefined?`${gd}/${g.count}`:`—/${g.count}`;const pct=gd&&g.count>0?Math.round(gd/g.count*100):0;return `<div class="grp-row"><div class="grp-header"><div class="grp-name">${g.name}</div><div class="grp-count">${txt}</div></div><div class="grp-bar"><div class="grp-bar-f" style="width:${pct}%"></div></div></div>`;}).join('');
     const btnId=`cwbtn_${pocId}_${w.week_id}`;
@@ -1424,7 +1605,7 @@ async function toggleAdminWeek(pocId,weekId){
   if(wkSet.has(weekId)){wkSet.delete(weekId);renderPocList();return;}
   wkSet.add(weekId);renderPocList();
   if(!(_groupState[pocId]&&_groupState[pocId][weekId])){
-    try{const res=await fetch(API+'/api/admin/pocs/'+pocId+'/state',{headers:hdr()});if(res.ok){const all=await res.json();if(!_groupState[pocId])_groupState[pocId]={};all.forEach(ws=>{const struct=WEEK_STRUCTURE.find(s=>s.id===ws.week_id);if(!struct)return;const chks=ws.checks||{};
+    try{const res=await fetch(API+'/api/admin/pocs/'+pocId+'/state',{headers:hdr()});if(res.ok){const all=await res.json();if(!_groupState[pocId])_groupState[pocId]={};all.forEach(ws=>{const struct=structFor(ws.week_id);if(!struct)return;const chks=ws.checks||{};
       if(typeof chks==='object'&&!Array.isArray(chks)){
         _groupState[pocId][ws.week_id]=struct.groups.map(g=>(g.items||[]).filter(id=>chks[id]===true).length);
       }else{let off=0;_groupState[pocId][ws.week_id]=struct.groups.map(g=>{const sl=Array.isArray(chks)?chks.slice(off,off+g.count):[];off+=g.count;return sl.filter(Boolean).length;});}});}}catch(e){}
@@ -1435,15 +1616,15 @@ async function adminCopyFull(pocId){
   const poc=pocs.find(p=>p.poc_id===pocId);if(!poc)return;
   await loadAdminProgress(pocId);
   const prog=_progress[pocId]||[];
-  if(prog.some(w=>w.done>0)&&!_groupState[pocId]){try{const res=await fetch(API+'/api/admin/pocs/'+pocId+'/state',{headers:hdr()});if(res.ok){const all=await res.json();_groupState[pocId]={};all.forEach(ws=>{const struct=WEEK_STRUCTURE.find(s=>s.id===ws.week_id);if(!struct)return;const chks=ws.checks||{};
+  if(prog.some(w=>w.done>0)&&!_groupState[pocId]){try{const res=await fetch(API+'/api/admin/pocs/'+pocId+'/state',{headers:hdr()});if(res.ok){const all=await res.json();_groupState[pocId]={};all.forEach(ws=>{const struct=structFor(ws.week_id);if(!struct)return;const chks=ws.checks||{};
       if(typeof chks==='object'&&!Array.isArray(chks)){
         _groupState[pocId][ws.week_id]=struct.groups.map(g=>(g.items||[]).filter(id=>chks[id]===true).length);
       }else{let off=0;_groupState[pocId][ws.week_id]=struct.groups.map(g=>{const sl=Array.isArray(chks)?chks.slice(off,off+g.count):[];off+=g.count;return sl.filter(Boolean).length;});}});}}catch(e){}}
   const today=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
   const pct=poc.progress_pct||0,done=poc.progress_done||0,tot=poc.progress_total||0;
-  const so=(prog||[]).filter(w=>w.signoff).length;
+  const so=(prog||[]).filter(w=>w.signoff&&!w.is_module).length;
   const lines=[`POC Status Update — ${poc.customer_name} (${poc.poc_id})`,`Updated: ${today}  |  SE: ${poc.se_email}`,``,`Overall: ${done}/${tot} items complete (${pct}%) | Weeks signed off: ${so}/5`,``];
-  (prog||[]).forEach(w=>{if(w.signoff||w.pct===100){lines.push(`${w.label}: ${w.done}/${w.total} (${w.pct}%)${w.signoff?' ✓ SIGNED OFF':''}`);}else if(w.done>0){lines.push(`${w.label}: ${w.done}/${w.total} (${w.pct}%)`);const gs=(_groupState[poc.poc_id]||{})[w.week_id];const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id);if(gs&&struct)struct.groups.forEach((g,gi)=>{const gd=gs[gi]||0;lines.push(`  ${gd>0?'✓':'○'} ${g.name}: ${gd}/${g.count}`);});}else{lines.push(`${w.label}: Not started`);}});
+  (prog||[]).forEach(w=>{if(w.signoff||w.pct===100){lines.push(`${w.label}: ${w.done}/${w.total} (${w.pct}%)${w.signoff?' ✓ SIGNED OFF':''}`);}else if(w.done>0){lines.push(`${w.label}: ${w.done}/${w.total} (${w.pct}%)`);const gs=(_groupState[poc.poc_id]||{})[w.week_id];const struct=structFor(w.week_id);if(gs&&struct)struct.groups.forEach((g,gi)=>{const gd=gs[gi]||0;lines.push(`  ${gd>0?'✓':'○'} ${g.name}: ${gd}/${g.count}`);});}else{lines.push(`${w.label}: Not started`);}});
   const btnId='bcf_'+pocId;
   navigator.clipboard.writeText(lines.join('\n')).then(()=>{const btn=document.getElementById(btnId);if(btn){btn.textContent='✓ Copied!';btn.classList.add('copied');}showToast('Full status copied — paste into Smartsheet');setTimeout(()=>{if(btn){btn.textContent='Copy full status';btn.classList.remove('copied');}},2500);});
 }const copyAdminStatus = adminCopyFull;
@@ -1452,7 +1633,7 @@ function adminCopyWeek(pocId,weekId,btnId){
   const prog=_progress[pocId]||[];const w=prog.find(x=>x.week_id===weekId);if(!w)return;
   const today=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
   const lines=[`${w.label}: ${w.done}/${w.total} (${w.pct}%)${w.signoff?' ✓ SIGNED OFF':''}`,`Updated: ${today}`,``];
-  const gs=(_groupState[pocId]||{})[w.week_id];const struct=WEEK_STRUCTURE.find(s=>s.id===w.week_id);
+  const gs=(_groupState[pocId]||{})[w.week_id];const struct=structFor(w.week_id);
   if(gs&&struct)struct.groups.forEach((g,gi)=>{const gd=gs[gi]||0;lines.push(`${gd>0?'✓':'○'} ${g.name}: ${gd}/${g.count}`);});
   if(w.signoff)lines.push('','Customer has signed off this week.');
   navigator.clipboard.writeText(lines.join('\n')).then(()=>{const btn=document.getElementById(btnId);if(btn){btn.textContent='✓ Copied!';btn.classList.add('copied');}showToast('Week status copied');setTimeout(()=>{if(btn){btn.textContent='Copy week status';btn.classList.remove('copied');}},2500);});
@@ -1490,12 +1671,18 @@ let _pendingDeletePocId=null;
 
 async function updateModule(pocId, mod, val){
   const mods = {};
-  ['hvm','hks','terraform','ansible'].forEach(m=>{
+  ['hvm','hks','terraform','ansible','sdn','optionlists','pricing','whitelabel'].forEach(m=>{
     const el=document.querySelector(`input[onchange*="'${pocId}','${m}'"]`);
     mods[m]=el?el.checked:false;
   });
   mods[mod]=val;
   await fetch(API+'/api/admin/pocs/'+pocId+'/modules',{method:'PUT',headers:hdr(),body:JSON.stringify({modules:mods})});
+  const p=pocs.find(x=>x.poc_id===pocId);
+  if(p)p.modules=mods;
+  // Refresh progress so a newly-enabled module's Week progress row appears immediately
+  // (and a disabled one disappears) without needing to reselect the POC.
+  try{const res=await fetch(API+'/api/pocs/'+pocId+'/progress',{headers:hdr()});if(res.ok)_adminProgress[pocId]=await res.json();}catch(e){}
+  if(selectedAdminPoc===pocId) renderAdminDetailPanel(pocId);
   showToast('Modules updated');
 }
 

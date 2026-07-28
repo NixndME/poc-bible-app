@@ -63,7 +63,7 @@ def main() -> None:
     end_date = start_date + timedelta(days=duration)
 
     watermark = prompt("Watermark text (printed on checklist)", customer_name)
-    license_type = prompt("License type", "Standard License")
+    license_type = prompt("License type", "Morpheus Standard License (45 Days)")
 
     print()
 

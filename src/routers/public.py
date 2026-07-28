@@ -88,8 +88,10 @@ def get_public_poc(request: Request,token: str, db: Session = Depends(get_db)):
         "end_date": str(end),
         "days_remaining": days_left,
         "modules": poc.modules,
+        "skips": poc.skips if isinstance(poc.skips, dict) else {},
         "watermark_text": poc.watermark_text,
         "status": poc.status,
+        "sequential_lock": poc.sequential_lock if poc.sequential_lock is not None else True,
     }
 
 

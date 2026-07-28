@@ -192,6 +192,8 @@ def list_all_pocs(
             "license_type": poc.license_type,
             "force_blocked": poc.force_blocked,
             "admin_override": poc.admin_override,
+            "sequential_lock": poc.sequential_lock if poc.sequential_lock is not None else True,
+            "gate_changed_at": poc.gate_changed_at.isoformat() if poc.gate_changed_at else None,
             "smartsheet_status": poc.smartsheet_status,
             "status": poc.status,
             "created_at": str(poc.created_at),
@@ -249,6 +251,26 @@ def admin_unblock_poc(poc_id: str, admin: User = Depends(require_admin), db: Ses
     poc.blocked_at = None; poc.status = "active"
     db.commit()
     return {"message": f"POC {poc_id} unblocked."}
+
+
+@router.put("/pocs/{poc_id}/unlock-gate")
+def admin_unlock_gate(poc_id: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    poc = db.query(Poc).filter(Poc.poc_id == poc_id).first()
+    if not poc: raise HTTPException(404, "POC not found")
+    poc.sequential_lock = False; poc.gate_changed_by = admin.id
+    poc.gate_changed_at = datetime.utcnow()
+    db.commit()
+    return {"message": f"Week gate removed for {poc_id}. All weeks are now unlocked."}
+
+
+@router.put("/pocs/{poc_id}/lock-gate")
+def admin_lock_gate(poc_id: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    poc = db.query(Poc).filter(Poc.poc_id == poc_id).first()
+    if not poc: raise HTTPException(404, "POC not found")
+    poc.sequential_lock = True; poc.gate_changed_by = admin.id
+    poc.gate_changed_at = datetime.utcnow()
+    db.commit()
+    return {"message": f"Week gate re-applied for {poc_id}."}
 
 
 @router.put("/pocs/{poc_id}/override")
